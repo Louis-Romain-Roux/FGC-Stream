@@ -156,6 +156,10 @@
     <Text Include="Debug\FGC-Stream.log" />
     <Text Include="Debug\FGC-Stream.vcxproj.FileListAbsolute.txt" />
   </ItemGroup>
+  <ItemGroup>
+    <None Include="Debug\FGC-Stream.exe" />
+    <None Include="README.md" />
+  </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
   </ImportGroup>

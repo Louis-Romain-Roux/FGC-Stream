@@ -2,8 +2,7 @@
 #include "FGC-Stream.h"
 
 
-
-void descend(GenNode* n, std::set<uint32_t> X, std::set<uint32_t> t_n, std::vector<ClosedIS*>* fGenitors) {
+void descend(GenNode* n, std::set<uint32_t> X, std::set<uint32_t> t_n, std::vector<ClosedIS*>* fGenitors, std::multimap<uint32_t, ClosedIS*>* ClosureList) {
 	if (n->item != 0) { // 0 is reserved for the root, so n->item = 0 actually means n is the empty set
 		X.insert(n->item);
 	}
@@ -19,14 +18,17 @@ void descend(GenNode* n, std::set<uint32_t> X, std::set<uint32_t> t_n, std::vect
 	else {
 		ClosedIS* closure;
 		if (!n->clos->visited) {
-			closure = new ClosedIS(iset, n->clos->support + 1);
+			closure = findCI(iset, ClosureList);
+			if (closure == nullptr) {
+				closure = new ClosedIS(iset, n->clos->support + 1, ClosureList);
+			}
 			n->clos->newCI = closure;
 			n->clos->visited = true;
+			fGenitors->push_back(n->clos);
 		}
 		else {
 			closure = n->clos->newCI;
 		}
-		fGenitors->push_back(n->clos);
 		closure->gens.insert(n);
 		n->clos->gens.erase(n);
 		std::set<uint32_t> face;
@@ -42,7 +44,7 @@ void descend(GenNode* n, std::set<uint32_t> X, std::set<uint32_t> t_n, std::vect
 	if (n->succ != nullptr) {
 		for (auto x : *(n->succ)) {
 			if (t_n.find(x.first) != t_n.end()) {
-				descend(x.second, X, t_n, fGenitors);
+				descend(x.second, X, t_n, fGenitors, ClosureList);
 			}
 		}
 	}
@@ -72,10 +74,10 @@ void filterCandidates(std::vector<ClosedIS*>* fGenitors, GenNode* root) {
 	}
 }
 
-void computeJumpers(GenNode* n, std::set<uint32_t> t_n, std::vector<ClosedIS*> newClosures, TIDList* TList, GenNode* root) {
+void computeJumpers(GenNode* n, std::set<uint32_t> t_n, std::vector<ClosedIS*> newClosures, TIDList* TList, GenNode* root, std::multimap<uint32_t, ClosedIS*>* ClosureList) {
 	if (n->succ != nullptr) {
 		for (auto child : *(n->succ)) {
-			computeJumpers(child.second, t_n, newClosures, TList, root);
+			computeJumpers(child.second, t_n, newClosures, TList, root, ClosureList);
 		}
 	}
 	if (n->succ != nullptr) {
@@ -103,7 +105,7 @@ void computeJumpers(GenNode* n, std::set<uint32_t> t_n, std::vector<ClosedIS*> n
 								}
 								if (isGen) {
 									GenNode* newGen = new GenNode(rightN->item, leftN, nullptr);
-									std::pair<bool, ClosedIS*> result = computeClosure(newGen, t_n, newClosures, root, TList);
+									std::pair<bool, ClosedIS*> result = computeClosure(newGen, t_n, newClosures, root, TList, ClosureList);
 									if (!result.first) {
 										newClosures.push_back(result.second);
 									}
@@ -125,7 +127,7 @@ void computeJumpers(GenNode* n, std::set<uint32_t> t_n, std::vector<ClosedIS*> n
 				if (support == minSupp) {
 					if (root->clos->support > minSupp) {
 						GenNode* newGen = new GenNode(item, root, nullptr);
-						std::pair<bool, ClosedIS*> result = computeClosure(newGen, t_n, newClosures, root, TList);
+						std::pair<bool, ClosedIS*> result = computeClosure(newGen, t_n, newClosures, root, TList, ClosureList);
 						if (!result.first) {
 							newClosures.push_back(result.second);
 						}
@@ -139,7 +141,7 @@ void computeJumpers(GenNode* n, std::set<uint32_t> t_n, std::vector<ClosedIS*> n
 	}
 }
 
-std::pair<bool,ClosedIS*> computeClosure(GenNode* gen, std::set<uint32_t> t_n, std::vector<ClosedIS*> newClosures, GenNode* root, TIDList *TList) {
+std::pair<bool,ClosedIS*> computeClosure(GenNode* gen, std::set<uint32_t> t_n, std::vector<ClosedIS*> newClosures, GenNode* root, TIDList *TList, std::multimap<uint32_t, ClosedIS*>* ClosureList) {
 	std::set<uint32_t> iset = gen->items();
 	for (auto clos : newClosures) {
 		if (std::includes(iset.begin(), iset.end(), clos->itemset.begin(), clos->itemset.end())) {
@@ -175,7 +177,10 @@ std::pair<bool,ClosedIS*> computeClosure(GenNode* gen, std::set<uint32_t> t_n, s
 			}
 		}
 	}
-	ClosedIS* clos = new ClosedIS(currClosure, minSupp);
+	ClosedIS* clos = findCI(currClosure, ClosureList);
+	if (clos == nullptr) {
+		clos = new ClosedIS(currClosure, minSupp, ClosureList);
+	}
 	return std::make_pair(false, clos);
 }
 
@@ -198,6 +203,17 @@ GenNode* genLookUp(std::set<uint32_t> iset, GenNode* root) { // Will return null
 		}
 	}
 	return Node;
+}
+
+ClosedIS* findCI(std::set<uint32_t> itemSet, std::multimap<uint32_t, ClosedIS*>* ClosureList) {
+	typedef std::multimap<uint32_t, ClosedIS*>::iterator MMAPIterator;
+	std::pair<MMAPIterator, MMAPIterator> result = ClosureList->equal_range(CISSum(itemSet));
+	for (MMAPIterator it = result.first; it != result.second; it++) {
+		if (it->second->itemset == itemSet) {
+			return it->second;
+		}
+	}
+	return nullptr;
 }
 
 std::set<uint32_t> GenNode::items()
@@ -230,11 +246,22 @@ GenNode::GenNode(uint32_t item, GenNode* parent, ClosedIS* closure)
 	}
 }
 
-ClosedIS::ClosedIS(std::set<uint32_t> itemset, uint32_t support) {
+int CISSum(std::set<uint32_t> Itemset) {
+	int sum = 0;
+	int mult = 1; // This will "slightly" reduce collisions
+	for (auto item : Itemset) {
+		sum += item*mult;
+		mult *= 10;
+	}
+	return sum;
+}
+
+ClosedIS::ClosedIS(std::set<uint32_t> itemset, uint32_t support, std::multimap<uint32_t, ClosedIS*>* ClosureList) {
 	this->support = support;
 	this->itemset = itemset;
 	this->visited = false;
 	this->newCI = nullptr;
+	ClosureList->insert(std::make_pair(CISSum(itemset), this));
 };
 
 void TIDList::add(std::set<uint32_t> t_n, uint32_t n) {
@@ -250,19 +277,7 @@ void TIDList::add(std::set<uint32_t> t_n, uint32_t n) {
 int TIDList::supp_from_tidlist(std::set<uint32_t> itemset) { //TODO : start from a known tidlist and agregate other items one at a time
 	std::set<uint32_t> iset = *this->TransactionList[*itemset.begin()];
 	for (auto item : itemset) {
-		// Snippet below does not work
-		/*
-		std::set<uint32_t> placeholderSet;
 
-		std::set<uint32_t> itemList = *this->TransactionList[item];
-
-		std::set_intersection(iset.begin(), iset.end(), itemList.begin(), itemList.end(), std::inserter(placeholderSet, placeholderSet.begin()));
-		//iset = placeholderSet;
-		std::copy(
-			placeholderSet.begin(), placeholderSet.end(),
-			std::inserter(iset, iset.begin()));
-		std::cout << 0;
-		*/
 		std::set<uint32_t> itemList = *this->TransactionList[item];
 		std::set<uint32_t>::iterator it1 = iset.begin();
 		std::set<uint32_t>::iterator it2 = itemList.begin();
