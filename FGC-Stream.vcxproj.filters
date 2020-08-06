@@ -18,9 +18,6 @@
     <ClCompile Include="FGC-Stream\FGC-Stream.cpp">
       <Filter>Fichiers sources</Filter>
     </ClCompile>
-    <ClCompile Include="FGC-Stream\util.cpp">
-      <Filter>Fichiers sources</Filter>
-    </ClCompile>
     <ClCompile Include="FGC-Stream\main.cpp">
       <Filter>Fichiers sources</Filter>
     </ClCompile>
@@ -42,5 +39,9 @@
     <Text Include="Debug\FGC-Stream.Build.CppClean.log" />
     <Text Include="Debug\FGC-Stream.log" />
     <Text Include="Debug\FGC-Stream.vcxproj.FileListAbsolute.txt" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="README.md" />
+    <None Include="Debug\FGC-Stream.exe" />
   </ItemGroup>
 </Project>

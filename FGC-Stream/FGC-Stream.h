@@ -5,6 +5,7 @@
 #include <set>
 #include <iostream>
 #include <algorithm>
+#include <numeric>
 
 struct ClosedIS;
 struct GenNode;
@@ -13,15 +14,17 @@ struct TIDList;
 extern uint32_t NODE_ID;
 extern uint32_t minSupp;
 
-void descend(GenNode* n, std::set<uint32_t> X, std::set<uint32_t> t_n, std::vector<ClosedIS*>* fGenitors);
+void descend(GenNode* n, std::set<uint32_t> X, std::set<uint32_t> t_n, std::vector<ClosedIS*>* fGenitors, std::multimap<uint32_t, ClosedIS*>* ClosureList);
 
 void filterCandidates(std::vector<ClosedIS*>* fGenitors, GenNode* root);
 GenNode* genLookUp(std::set<uint32_t> iset, GenNode* root);
 
-void computeJumpers(GenNode* n, std::set<uint32_t> t_n, std::vector<ClosedIS*> newClosures, TIDList* TList, GenNode* root);
-std::pair<bool, ClosedIS*> computeClosure(GenNode* gen, std::set<uint32_t> t_n, std::vector<ClosedIS*> newClosures, GenNode* root, TIDList* TList);
+void computeJumpers(GenNode* n, std::set<uint32_t> t_n, std::vector<ClosedIS*> newClosures, TIDList* TList, GenNode* root, std::multimap<uint32_t, ClosedIS*>* ClosureList);
+std::pair<bool, ClosedIS*> computeClosure(GenNode* gen, std::set<uint32_t> t_n, std::vector<ClosedIS*> newClosures, GenNode* root, TIDList* TList, std::multimap<uint32_t, ClosedIS*>* ClosureList);
 
 void resetStatus(GenNode*);
+ClosedIS* findCI(std::set<uint32_t> itemSet, std::multimap<uint32_t, ClosedIS*>* ClosureList);
+int CISSum(std::set<uint32_t> Itemset);
 
 struct GenNode {
 	uint32_t item;
@@ -54,7 +57,7 @@ struct ClosedIS {
 	ClosedIS* newCI;
 	std::set < std::set<uint32_t>* > candidates;
 
-	ClosedIS(std::set<uint32_t> itemset, uint32_t support);
+	ClosedIS(std::set<uint32_t> itemset, uint32_t support, std::multimap<uint32_t, ClosedIS*>* ClosureList);
 };
 
 struct TIDList {

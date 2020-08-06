@@ -7,23 +7,24 @@ uint32_t NODE_ID = 0;
 uint32_t minSupp = 1;
 uint32_t totalGens = 0;
 
-void Addition(std::set<uint32_t> t_n, int n, GenNode* root, TIDList* TList) {
+void Addition(std::set<uint32_t> t_n, int n, GenNode* root, TIDList* TList, std::multimap<uint32_t, ClosedIS*>* ClosureList) {
     TList->add(t_n, n);
     std::set<uint32_t> emptySet;
     std::vector<ClosedIS*> fGenitors;
 
-    descend(root, emptySet, t_n, &fGenitors);
+    descend(root, emptySet, t_n, &fGenitors, ClosureList);
 
     filterCandidates(&fGenitors, root);
     std::vector<ClosedIS*> newClosures;
 
-    computeJumpers(root, t_n, newClosures, TList, root);
+    computeJumpers(root, t_n, newClosures, TList, root, ClosureList);
 
     resetStatus(root); // This is needed to set all visited flags back to false and clear the candidate list
 }
 
 // Helper function
 void printAllGens(GenNode* node) {
+    totalGens = 0;
     for (auto child : *node->succ) {
         printAllGens(child.second);
     }
@@ -38,6 +39,27 @@ void printAllGens(GenNode* node) {
     std::cout << "\n";
 }
 
+void printAllClosuresWithGens(std::multimap<uint32_t, ClosedIS*> ClosureList) {
+    totalGens = 0;
+    for (auto x : ClosureList) {
+        ClosedIS currCI = *x.second;
+        std::cout << "Closed itemset { ";
+        for (auto item : currCI.itemset) {
+            std::cout << item << " ";
+        }
+        std::cout << "} has generators : ";
+        for (auto gen : currCI.gens) {
+            totalGens++;
+            std::cout << "{ ";
+            for (auto item : gen->items()) {
+                std::cout << item << " ";
+            }
+            std::cout << "} ";
+        }
+        std::cout << "\n";
+    }
+}
+
 
 int main()
 {
@@ -46,19 +68,20 @@ int main()
     // TODO : get the intersection of the first minSupp transaction, then set root's closure as that intersection
     const uint32_t window_size = 1000;
     minSupp = 1;
-    std::ifstream input("Datasets/test_input.txt");
+    std::ifstream input("Datasets/in.txt");
     char s[10000];
     uint32_t i = 0;
     input.getline(s, 10000);
     char* pch = strtok(s, " ");
 
+    std::multimap<uint32_t, ClosedIS*> ClosureList;
     Transaction<uint32_t> new_transaction = Transaction<uint32_t>(pch, " ", 0);
     i++;
     std::vector<uint32_t> closSetvec = *new_transaction.data();
 
     std::set<uint32_t> closSet(closSetvec.begin(), closSetvec.end());
 
-    ClosedIS EmptyClos(closSet, 1); 
+    ClosedIS EmptyClos(closSet, 1, &ClosureList); 
     GenNode* root = new GenNode(0, nullptr, &EmptyClos);
     TIDList* TList = new TIDList();
 
@@ -75,7 +98,7 @@ int main()
 
         std::set<uint32_t> t_n(t_nVec.begin(), t_nVec.end());
 
-        Addition(t_n, i, root, TList);
+        Addition(t_n, i, root, TList, &ClosureList);
         
 
         if (i % 500 == 0) {
@@ -83,8 +106,9 @@ int main()
         }
     }
     std::cout << "Displaying all found generators as of transaction " << i << " :\n";
-    printAllGens(root);
-    std::cout << "Total number of generators: " << totalGens;
+    printAllClosuresWithGens(ClosureList);
+    std::cout << "Total number of generators: " << totalGens << "\n";
+
 
     return 0;
 }

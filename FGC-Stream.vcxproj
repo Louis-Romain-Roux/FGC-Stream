@@ -117,6 +117,7 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
+      <LanguageStandard>stdcpp17</LanguageStandard>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -142,7 +143,6 @@
   <ItemGroup>
     <ClCompile Include="FGC-Stream\FGC-Stream.cpp" />
     <ClCompile Include="FGC-Stream\main.cpp" />
-    <ClCompile Include="FGC-Stream\util.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="FGC-Stream\FGC-Stream.h" />
@@ -155,6 +155,10 @@
     <Text Include="Debug\FGC-Stream.Build.CppClean.log" />
     <Text Include="Debug\FGC-Stream.log" />
     <Text Include="Debug\FGC-Stream.vcxproj.FileListAbsolute.txt" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="Debug\FGC-Stream.exe" />
+    <None Include="README.md" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
