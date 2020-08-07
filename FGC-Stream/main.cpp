@@ -12,7 +12,7 @@ void Addition(std::set<uint32_t> t_n, int n, GenNode* root, TIDList* TList, std:
 
     TList->add(t_n, n);
     std::set<uint32_t> emptySet;
-    std::vector<ClosedIS*> fGenitors;
+    std::multimap<uint32_t, ClosedIS*> fGenitors;
 
     descend(root, emptySet, t_n, &fGenitors, ClosureList);
 

@@ -2,7 +2,8 @@
 #include "FGC-Stream.h"
 
 
-void descend(GenNode* n, std::set<uint32_t> X, std::set<uint32_t> t_n, std::vector<ClosedIS*>* fGenitors, std::multimap<uint32_t, ClosedIS*>* ClosureList) {
+
+void descend(GenNode* n, std::set<uint32_t> X, std::set<uint32_t> t_n, std::multimap < uint32_t, ClosedIS* >* fGenitors, std::multimap<uint32_t, ClosedIS*>* ClosureList) {
 	if (n->item != 0) { // 0 is reserved for the root, so n->item = 0 actually means n is the empty set
 		X.insert(n->item);
 	}
@@ -24,7 +25,7 @@ void descend(GenNode* n, std::set<uint32_t> X, std::set<uint32_t> t_n, std::vect
 			}
 			n->clos->newCI = closure;
 			n->clos->visited = true;
-			fGenitors->push_back(n->clos);
+			fGenitors->insert(std::make_pair(n->clos->itemset.size(), n->clos));
 		}
 		else {
 			closure = n->clos->newCI;
@@ -50,11 +51,11 @@ void descend(GenNode* n, std::set<uint32_t> X, std::set<uint32_t> t_n, std::vect
 	}
 }
 
-void filterCandidates(std::vector<ClosedIS*>* fGenitors, GenNode* root) {
+void filterCandidates(std::multimap < uint32_t, ClosedIS* >* fGenitors, GenNode* root) {
 	for (auto genitor : *fGenitors) {
-		for (auto iset : genitor->candidates) {
+		for (auto iset : genitor.second->candidates) {
 			bool sset = false;
-			for (auto n : genitor->gens) {
+			for (auto n : genitor.second->gens) {
 				std::set<uint32_t> itemset = n->items();
 				if (std::includes(iset->begin(), iset->end(), itemset.begin(), itemset.end())) {
 					sset = true;
@@ -67,8 +68,8 @@ void filterCandidates(std::vector<ClosedIS*>* fGenitors, GenNode* root) {
 				std::set<uint32_t> copy = *iset;
 				GenNode* father = genLookUp(copy, root);
 				if (father != nullptr) {
-					GenNode* newGI = new GenNode(lastItem, father, genitor);
-					genitor->gens.insert(newGI);
+					GenNode* newGI = new GenNode(lastItem, father, genitor.second);
+					genitor.second->gens.insert(newGI);
 				}
 
 			}
@@ -182,21 +183,6 @@ std::pair<bool,ClosedIS*> computeClosure(GenNode* gen, std::set<uint32_t> t_n, s
 		}
 	}
 
-	std::set<uint32_t> rootSucc;
-	for (auto child : *(root->succ)) {
-		rootSucc.insert(child.first);
-	}
-
-	std::set<uint32_t> outside_2;
-	std::set_difference(rootSucc.begin(), rootSucc.end(), currClosure.begin(), currClosure.end(), std::inserter(outside_2, outside_2.end()));
-
-	for (auto item : outside_2) {	
-		currClosure.insert(item);
-		int support = TList->supp_from_tidlist(currClosure);
-		if (support != minSupp) {
-			currClosure.erase(item);
-		}
-	}
 
 	ClosedIS* clos = findCI(currClosure, ClosureList);
 	if (clos == nullptr) {

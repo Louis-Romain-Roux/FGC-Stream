@@ -14,9 +14,9 @@ struct TIDList;
 extern uint32_t NODE_ID;
 extern uint32_t minSupp;
 
-void descend(GenNode* n, std::set<uint32_t> X, std::set<uint32_t> t_n, std::vector<ClosedIS*>* fGenitors, std::multimap<uint32_t, ClosedIS*>* ClosureList);
+void descend(GenNode* n, std::set<uint32_t> X, std::set<uint32_t> t_n, std::multimap < uint32_t, ClosedIS* >* fGenitors, std::multimap<uint32_t, ClosedIS*>* ClosureList);
 
-void filterCandidates(std::vector<ClosedIS*>* fGenitors, GenNode* root);
+void filterCandidates(std::multimap < uint32_t, ClosedIS* >* fGenitors, GenNode* root);
 GenNode* genLookUp(std::set<uint32_t> iset, GenNode* root);
 
 void computeJumpers(GenNode* n, std::set<uint32_t> t_n, std::vector<ClosedIS*> newClosures, TIDList* TList, GenNode* root, std::multimap<uint32_t, ClosedIS*>* ClosureList);
