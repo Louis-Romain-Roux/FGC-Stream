@@ -3,11 +3,13 @@
 #include <iostream>
 #include <fstream>
 
+
 uint32_t NODE_ID = 0;
 uint32_t minSupp = 1;
 uint32_t totalGens = 0;
 
 void Addition(std::set<uint32_t> t_n, int n, GenNode* root, TIDList* TList, std::multimap<uint32_t, ClosedIS*>* ClosureList) {
+
     TList->add(t_n, n);
     std::set<uint32_t> emptySet;
     std::vector<ClosedIS*> fGenitors;
@@ -57,6 +59,7 @@ void printAllClosuresWithGens(std::multimap<uint32_t, ClosedIS*> ClosureList) {
             std::cout << "} ";
         }
         std::cout << "\n";
+        
     }
 }
 

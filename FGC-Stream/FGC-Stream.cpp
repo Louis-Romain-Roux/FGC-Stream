@@ -66,9 +66,11 @@ void filterCandidates(std::vector<ClosedIS*>* fGenitors, GenNode* root) {
 				iset->erase(std::prev(iset->end()));
 				std::set<uint32_t> copy = *iset;
 				GenNode* father = genLookUp(copy, root);
+				if (father != nullptr) {
+					GenNode* newGI = new GenNode(lastItem, father, genitor);
+					genitor->gens.insert(newGI);
+				}
 
-				GenNode* newGI = new GenNode(lastItem, father, genitor);
-				genitor->gens.insert(newGI);
 			}
 		}
 	}
@@ -158,6 +160,7 @@ std::pair<bool,ClosedIS*> computeClosure(GenNode* gen, std::set<uint32_t> t_n, s
 		currClosure.insert(subset->clos->itemset.begin(), subset->clos->itemset.end());
 		isetCp.insert(item);
 	}
+
 	std::set<uint32_t> outside;
 	std::set_difference(t_n.begin(), t_n.end(), currClosure.begin(), currClosure.end(), std::inserter(outside, outside.end()));
 	
@@ -178,6 +181,23 @@ std::pair<bool,ClosedIS*> computeClosure(GenNode* gen, std::set<uint32_t> t_n, s
 			}
 		}
 	}
+
+	std::set<uint32_t> rootSucc;
+	for (auto child : *(root->succ)) {
+		rootSucc.insert(child.first);
+	}
+
+	std::set<uint32_t> outside_2;
+	std::set_difference(rootSucc.begin(), rootSucc.end(), currClosure.begin(), currClosure.end(), std::inserter(outside_2, outside_2.end()));
+
+	for (auto item : outside_2) {	
+		currClosure.insert(item);
+		int support = TList->supp_from_tidlist(currClosure);
+		if (support != minSupp) {
+			currClosure.erase(item);
+		}
+	}
+
 	ClosedIS* clos = findCI(currClosure, ClosureList);
 	if (clos == nullptr) {
 		clos = new ClosedIS(currClosure, minSupp, ClosureList);
