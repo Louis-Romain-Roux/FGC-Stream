@@ -97,7 +97,8 @@ void computeJumpers(GenNode* n, std::set<uint32_t> t_n, std::vector<ClosedIS*> n
 								cpCandIS.insert(candIS.begin(), candIS.end());
 								for (auto item : candIS) {
 									cpCandIS.erase(item);
-									if (genLookUp(cpCandIS, root) == nullptr) {
+									GenNode* subset = genLookUp(cpCandIS, root);
+									if (subset == nullptr || subset->clos->support==minSupp) {
 										isGen = false;
 										break;
 									}

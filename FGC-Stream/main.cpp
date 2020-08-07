@@ -47,7 +47,7 @@ void printAllClosuresWithGens(std::multimap<uint32_t, ClosedIS*> ClosureList) {
         for (auto item : currCI.itemset) {
             std::cout << item << " ";
         }
-        std::cout << "} has generators : ";
+        std::cout << "} (" << currCI.support << ") has generators : ";
         for (auto gen : currCI.gens) {
             totalGens++;
             std::cout << "{ ";
