@@ -153,6 +153,7 @@ std::pair<bool,ClosedIS*> computeClosure(GenNode* gen, std::set<uint32_t> t_n, s
 		}
 	}
 	std::set<uint32_t> currClosure;
+	currClosure.insert(iset.begin(), iset.end());
 	std::set<uint32_t> isetCp;
 	isetCp.insert(iset.begin(), iset.end());
 	for (auto item : iset) {
@@ -166,7 +167,7 @@ std::pair<bool,ClosedIS*> computeClosure(GenNode* gen, std::set<uint32_t> t_n, s
 	std::set_difference(t_n.begin(), t_n.end(), currClosure.begin(), currClosure.end(), std::inserter(outside, outside.end()));
 	
 	for (auto item : outside) {
-		if (iset.find(item) != iset.end()) {
+		if (iset.find(item) == iset.end()) {
 			iset.insert(item);
 			int support = TList->supp_from_tidlist(iset);
 			if (support == minSupp) {
