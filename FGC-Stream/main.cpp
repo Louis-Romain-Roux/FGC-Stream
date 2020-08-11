@@ -5,7 +5,7 @@
 
 
 uint32_t NODE_ID = 0;
-uint32_t minSupp = 1;
+uint32_t minSupp = 3;
 uint32_t totalGens = 0;
 
 void Addition(std::set<uint32_t> t_n, int n, GenNode* root, TIDList* TList, std::multimap<uint32_t, ClosedIS*>* ClosureList) {
@@ -66,12 +66,9 @@ void printAllClosuresWithGens(std::multimap<uint32_t, ClosedIS*> ClosureList) {
 
 int main()
 {
-    // We get the first transaction manually, which is necessary as no itemset is present --> the algorithm will not work correctly
-    // This means that it only works for minSupp = 1
-    // TODO : get the intersection of the first minSupp transaction, then set root's closure as that intersection
     const uint32_t window_size = 1000;
-    minSupp = 3;
-    std::ifstream input("Datasets/in.txt");
+    minSupp = 1;
+    std::ifstream input("Datasets/retail.txt");
     char s[10000];
     uint32_t i = 0;
 
@@ -135,9 +132,6 @@ int main()
 
         std::set<uint32_t> t_n(t_nVec.begin(), t_nVec.end());
 
-        if (i == 6) {
-            i++; i--;
-        }
 
         Addition(t_n, i, root, TList, &ClosureList);
 

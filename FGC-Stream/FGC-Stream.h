@@ -67,4 +67,7 @@ struct TIDList {
 	void add(std::set<uint32_t> t_n, uint32_t n);
 	int supp_from_tidlist(std::set<uint32_t> itemset);
 	int supp_singleton(uint32_t item);
+	bool closureIncludes(std::set<uint32_t> currList, uint32_t item);
+	std::set<uint32_t> getISTL(std::set<uint32_t> itemset);
+	int singleInterSupp(uint32_t item, std::set<uint32_t> currTIDList);
 };
