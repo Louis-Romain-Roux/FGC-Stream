@@ -78,22 +78,19 @@ void filterCandidates(std::multimap < uint32_t, ClosedIS* >* fGenitors, GenNode*
 }
 
 void computeJumpers(GenNode* n, std::set<uint32_t> t_n, std::vector<ClosedIS*> newClosures, TIDList* TList, GenNode* root, std::multimap<uint32_t, ClosedIS*>* ClosureList) {
-	for (auto child : *(n->succ)) {
-		computeJumpers(child.second, t_n, newClosures, TList, root, ClosureList);
+
+	for (std::map<uint32_t, GenNode*>::const_iterator child = n->succ->begin(); child != n->succ->end(); child++) {
+		computeJumpers(child->second, t_n, newClosures, TList, root, ClosureList);
 	}
 	
-	
-	for (auto left : *(n->succ)) {
-	//for (auto left = n->succ->begin(); left != n->succ->end(); ++left) {
-		if (t_n.find(left.second->item) != t_n.end()) {
-			//for (auto right : *(n->succ)) {
+	for (std::map<uint32_t, GenNode*>::const_iterator left = n->succ->begin(); left != n->succ->end(); left++) {
+		if (t_n.find(left->second->item) != t_n.end()) {
 			std::set<uint32_t> ISTL;
 			std::set<uint32_t> candIS;
-			//for (auto right = std::next(left); right != n->succ->end(); ++right) {
-			for (auto right : *(n->succ)) {
-				if (t_n.find(right.second->item > left.second->item && right.second->item) != t_n.end()) {
-					GenNode* leftN = left.second;
-					GenNode* rightN = right.second;
+			for (std::map<uint32_t, GenNode*>::const_iterator right = std::next(left); right != n->succ->end(); right++) {
+				if (t_n.find(right->second->item) != t_n.end()) {
+					GenNode* leftN = left->second;
+					GenNode* rightN = right->second;
 					if (leftN->succ->find(rightN->item) == leftN->succ->end()) {
 						if (candIS.empty()) {
 							candIS = leftN->items();
@@ -102,7 +99,7 @@ void computeJumpers(GenNode* n, std::set<uint32_t> t_n, std::vector<ClosedIS*> n
 						
 						candIS.insert(rightN->item);
 						int support = TList->singleInterSupp(rightN->item, ISTL);
-						if(support = minSupp){
+						if(support == minSupp){
 							bool isGen = true;
 							std::set<uint32_t> cpCandIS;
 							cpCandIS.insert(candIS.begin(), candIS.end());
@@ -126,6 +123,7 @@ void computeJumpers(GenNode* n, std::set<uint32_t> t_n, std::vector<ClosedIS*> n
 								newGen->clos = clos;
 							}
 						}
+						candIS.erase(rightN->item);
 					}
 				}
 			}
@@ -133,12 +131,12 @@ void computeJumpers(GenNode* n, std::set<uint32_t> t_n, std::vector<ClosedIS*> n
 	}
 	
 	if (n->item == 0) {
-		for (auto item : t_n) {
-			if (n->succ->find(item) == n->succ->end()) {
-				int support = TList->supp_singleton(item);
+		for(std::set<uint32_t>::const_iterator item = t_n.begin(); item != t_n.end(); item++){
+			if (n->succ->find(*item) == n->succ->end()) {
+				int support = TList->supp_singleton(*item);
 				if (support == minSupp) {
 					if (root->clos->support > minSupp) {
-						GenNode* newGen = new GenNode(item, root, nullptr);
+						GenNode* newGen = new GenNode(*item, root, nullptr);
 						std::pair<bool, ClosedIS*> result = computeClosure(newGen, t_n, newClosures, root, TList, ClosureList);
 						if (!result.first) {
 							newClosures.push_back(result.second);
@@ -178,7 +176,6 @@ std::pair<bool,ClosedIS*> computeClosure(GenNode* gen, std::set<uint32_t> t_n, s
 	std::set<uint32_t> outside;
 	std::set_difference(t_n.begin(), t_n.end(), currClosure.begin(), currClosure.end(), std::inserter(outside, outside.end()));
 
-	//Changer supp_from_tidlist par une inclusion
 	std::set<uint32_t> ISTL = TList->getISTL(iset);
 	
 	for (auto item : outside) {

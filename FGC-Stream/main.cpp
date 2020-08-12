@@ -67,7 +67,6 @@ void printAllClosuresWithGens(std::multimap<uint32_t, ClosedIS*> ClosureList) {
 int main()
 {
     const uint32_t window_size = 1000;
-    minSupp = 1;
     std::ifstream input("Datasets/retail.txt");
     char s[10000];
     uint32_t i = 0;
