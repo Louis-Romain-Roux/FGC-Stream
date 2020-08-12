@@ -3,14 +3,16 @@
 #include <iostream>
 #include <fstream>
 
+
 uint32_t NODE_ID = 0;
-uint32_t minSupp = 1;
+uint32_t minSupp = 3;
 uint32_t totalGens = 0;
 
 void Addition(std::set<uint32_t> t_n, int n, GenNode* root, TIDList* TList, std::multimap<uint32_t, ClosedIS*>* ClosureList) {
+
     TList->add(t_n, n);
     std::set<uint32_t> emptySet;
-    std::vector<ClosedIS*> fGenitors;
+    std::multimap<uint32_t, ClosedIS*> fGenitors;
 
     descend(root, emptySet, t_n, &fGenitors, ClosureList);
 
@@ -48,7 +50,7 @@ void printAllClosuresWithGens(std::multimap<uint32_t, ClosedIS*> ClosureList) {
         for (auto item : currCI.itemset) {
             std::cout << item << " ";
         }
-        std::cout << "} has generators : ";
+        std::cout << "} (" << currCI.support << ") has generators : ";
         for (auto gen : currCI.gens) {
             totalGens++;
             std::cout << "{ ";
@@ -58,36 +60,69 @@ void printAllClosuresWithGens(std::multimap<uint32_t, ClosedIS*> ClosureList) {
             std::cout << "} ";
         }
         std::cout << "\n";
+        
     }
 }
 
 
 int main(int argc, char** argv)
 {
-    // We get the first transaction manually, which is necessary as no itemset is present --> the algorithm will not work correctly
-    // This means that it only works for minSupp = 1
-    // TODO : get the intersection of the first minSupp transaction, then set root's closure as that intersection
     const uint32_t window_size = 1000;
+<<<<<<< HEAD
     if (argc < 2) return 1;
     minSupp = strtoul(argv[2], 0, 10);//1;
     std::ifstream input(/*"Datasets/in.txt"*/argv[1]);
     char s[10000];
     uint32_t i = 0;
+
+    TIDList* TList = new TIDList();
+
+
+    std::set<uint32_t> closSet;
+    std::multimap<uint32_t, ClosedIS*> ClosureList;
+
     input.getline(s, 10000);
     char* pch = strtok(s, " ");
-
-    std::multimap<uint32_t, ClosedIS*> ClosureList;
     Transaction<uint32_t> new_transaction = Transaction<uint32_t>(pch, " ", 0);
     i++;
     std::vector<uint32_t> closSetvec = *new_transaction.data();
-
-    std::set<uint32_t> closSet(closSetvec.begin(), closSetvec.end());
-
-    ClosedIS EmptyClos(closSet, 1, &ClosureList); 
-    GenNode* root = new GenNode(0, nullptr, &EmptyClos);
-    TIDList* TList = new TIDList();
-
+    closSet.insert(closSetvec.begin(), closSetvec.end());
     TList->add(closSet, i);
+
+    while (i < minSupp) {
+        input.getline(s, 10000);
+        char* pch = strtok(s, " ");
+        Transaction<uint32_t> new_transaction = Transaction<uint32_t>(pch, " ", 0);
+        i++;
+        std::vector<uint32_t> closSetvec = *new_transaction.data();
+
+        std::set<uint32_t> closSetPart(closSetvec.begin(), closSetvec.end());
+        TList->add(closSetPart, i);
+
+        std::set<uint32_t>::iterator it1 = closSet.begin();
+        std::set<uint32_t>::iterator it2 = closSetPart.begin();
+
+        while ((it1 != closSet.end()) && (it2 != closSetPart.end())) {
+            if (*it1 < *it2) {
+                closSet.erase(it1++);
+            }
+            else if (*it2 < *it1) {
+                ++it2;
+            }
+            else {
+                ++it1;
+                ++it2;
+            }
+        }
+        closSet.erase(it1, closSet.end());
+        
+    }
+
+
+    ClosedIS EmptyClos(closSet, minSupp, &ClosureList); 
+    GenNode* root = new GenNode(0, nullptr, &EmptyClos);
+
+    
 
 
     while (input.getline(s, 10000)) {
@@ -100,10 +135,11 @@ int main(int argc, char** argv)
 
         std::set<uint32_t> t_n(t_nVec.begin(), t_nVec.end());
 
-        Addition(t_n, i, root, TList, &ClosureList);
-        
 
-        if (i % 500 == 0) {
+        Addition(t_n, i, root, TList, &ClosureList);
+
+
+        if (i % 10 == 0) {
             std::cout << i << " transaction(s) processed" << std::endl;
         }
     }

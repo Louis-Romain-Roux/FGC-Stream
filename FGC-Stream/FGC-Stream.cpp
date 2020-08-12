@@ -2,7 +2,8 @@
 #include "FGC-Stream.h"
 
 
-void descend(GenNode* n, std::set<uint32_t> X, std::set<uint32_t> t_n, std::vector<ClosedIS*>* fGenitors, std::multimap<uint32_t, ClosedIS*>* ClosureList) {
+
+void descend(GenNode* n, std::set<uint32_t> X, std::set<uint32_t> t_n, std::multimap < uint32_t, ClosedIS* >* fGenitors, std::multimap<uint32_t, ClosedIS*>* ClosureList) {
 	if (n->item != 0) { // 0 is reserved for the root, so n->item = 0 actually means n is the empty set
 		X.insert(n->item);
 	}
@@ -24,7 +25,7 @@ void descend(GenNode* n, std::set<uint32_t> X, std::set<uint32_t> t_n, std::vect
 			}
 			n->clos->newCI = closure;
 			n->clos->visited = true;
-			fGenitors->push_back(n->clos);
+			fGenitors->insert(std::make_pair(n->clos->itemset.size(), n->clos));
 		}
 		else {
 			closure = n->clos->newCI;
@@ -50,11 +51,11 @@ void descend(GenNode* n, std::set<uint32_t> X, std::set<uint32_t> t_n, std::vect
 	}
 }
 
-void filterCandidates(std::vector<ClosedIS*>* fGenitors, GenNode* root) {
+void filterCandidates(std::multimap < uint32_t, ClosedIS* >* fGenitors, GenNode* root) {
 	for (auto genitor : *fGenitors) {
-		for (auto iset : genitor->candidates) {
+		for (auto iset : genitor.second->candidates) {
 			bool sset = false;
-			for (auto n : genitor->gens) {
+			for (auto n : genitor.second->gens) {
 				std::set<uint32_t> itemset = n->items();
 				if (std::includes(iset->begin(), iset->end(), itemset.begin(), itemset.end())) {
 					sset = true;
@@ -66,53 +67,63 @@ void filterCandidates(std::vector<ClosedIS*>* fGenitors, GenNode* root) {
 				iset->erase(std::prev(iset->end()));
 				std::set<uint32_t> copy = *iset;
 				GenNode* father = genLookUp(copy, root);
+				if (father != nullptr) {
+					GenNode* newGI = new GenNode(lastItem, father, genitor.second);
+					genitor.second->gens.insert(newGI);
+				}
 
-				GenNode* newGI = new GenNode(lastItem, father, genitor);
-				genitor->gens.insert(newGI);
 			}
 		}
 	}
 }
 
 void computeJumpers(GenNode* n, std::set<uint32_t> t_n, std::vector<ClosedIS*> newClosures, TIDList* TList, GenNode* root, std::multimap<uint32_t, ClosedIS*>* ClosureList) {
-	if (n->succ != nullptr) {
-		for (auto child : *(n->succ)) {
-			computeJumpers(child.second, t_n, newClosures, TList, root, ClosureList);
-		}
+	for (auto child : *(n->succ)) {
+		computeJumpers(child.second, t_n, newClosures, TList, root, ClosureList);
 	}
-	if (n->succ != nullptr) {
-		for (auto left : *(n->succ)) {
-			if (t_n.find(left.second->item) != t_n.end()) {
-				for (auto right : *(n->succ)) {
-					if (t_n.find(right.second->item) != t_n.end() and right.second->item > left.second->item) {
-						GenNode* leftN = left.second;
-						GenNode* rightN = right.second;
-						if (leftN->succ->find(rightN->item) == leftN->succ->end()) {
-							std::set<uint32_t> candIS = leftN->items();
-							candIS.insert(rightN->item);
-							int support = TList->supp_from_tidlist(candIS);
-							if (support == minSupp) {
-								bool isGen = true;
-								std::set<uint32_t> cpCandIS;
-								cpCandIS.insert(candIS.begin(), candIS.end());
-								for (auto item : candIS) {
-									cpCandIS.erase(item);
-									if (genLookUp(cpCandIS, root) == nullptr) {
-										isGen = false;
-										break;
-									}
-									cpCandIS.insert(item);
+	
+	
+	for (auto left : *(n->succ)) {
+	//for (auto left = n->succ->begin(); left != n->succ->end(); ++left) {
+		if (t_n.find(left.second->item) != t_n.end()) {
+			//for (auto right : *(n->succ)) {
+			std::set<uint32_t> ISTL;
+			std::set<uint32_t> candIS;
+			//for (auto right = std::next(left); right != n->succ->end(); ++right) {
+			for (auto right : *(n->succ)) {
+				if (t_n.find(right.second->item > left.second->item && right.second->item) != t_n.end()) {
+					GenNode* leftN = left.second;
+					GenNode* rightN = right.second;
+					if (leftN->succ->find(rightN->item) == leftN->succ->end()) {
+						if (candIS.empty()) {
+							candIS = leftN->items();
+							ISTL = TList->getISTL(candIS);
+						}
+						
+						candIS.insert(rightN->item);
+						int support = TList->singleInterSupp(rightN->item, ISTL);
+						if(support = minSupp){
+							bool isGen = true;
+							std::set<uint32_t> cpCandIS;
+							cpCandIS.insert(candIS.begin(), candIS.end());
+							for (auto item : candIS) {
+								cpCandIS.erase(item);
+								GenNode* subset = genLookUp(cpCandIS, root);
+								if (subset == nullptr || subset->clos->support==minSupp) {
+									isGen = false;
+									break;
 								}
-								if (isGen) {
-									GenNode* newGen = new GenNode(rightN->item, leftN, nullptr);
-									std::pair<bool, ClosedIS*> result = computeClosure(newGen, t_n, newClosures, root, TList, ClosureList);
-									if (!result.first) {
-										newClosures.push_back(result.second);
-									}
-									ClosedIS* clos = result.second;
-									clos->gens.insert(newGen);
-									newGen->clos = clos;
+								cpCandIS.insert(item);
+							}
+							if (isGen) {
+								GenNode* newGen = new GenNode(rightN->item, leftN, nullptr);
+								std::pair<bool, ClosedIS*> result = computeClosure(newGen, t_n, newClosures, root, TList, ClosureList);
+								if (!result.first) {
+									newClosures.push_back(result.second);
 								}
+								ClosedIS* clos = result.second;
+								clos->gens.insert(newGen);
+								newGen->clos = clos;
 							}
 						}
 					}
@@ -120,6 +131,7 @@ void computeJumpers(GenNode* n, std::set<uint32_t> t_n, std::vector<ClosedIS*> n
 			}
 		}
 	}
+	
 	if (n->item == 0) {
 		for (auto item : t_n) {
 			if (n->succ->find(item) == n->succ->end()) {
@@ -149,6 +161,11 @@ std::pair<bool,ClosedIS*> computeClosure(GenNode* gen, std::set<uint32_t> t_n, s
 		}
 	}
 	std::set<uint32_t> currClosure;
+	currClosure.insert(iset.begin(), iset.end());
+
+	// Commenting the below block seems to be a few % faster
+	//TODO : more tests
+	/*
 	std::set<uint32_t> isetCp;
 	isetCp.insert(iset.begin(), iset.end());
 	for (auto item : iset) {
@@ -157,26 +174,20 @@ std::pair<bool,ClosedIS*> computeClosure(GenNode* gen, std::set<uint32_t> t_n, s
 		currClosure.insert(subset->clos->itemset.begin(), subset->clos->itemset.end());
 		isetCp.insert(item);
 	}
+	*/
 	std::set<uint32_t> outside;
 	std::set_difference(t_n.begin(), t_n.end(), currClosure.begin(), currClosure.end(), std::inserter(outside, outside.end()));
+
+	//Changer supp_from_tidlist par une inclusion
+	std::set<uint32_t> ISTL = TList->getISTL(iset);
 	
 	for (auto item : outside) {
-		if (iset.find(item) != iset.end()) {
-			iset.insert(item);
-			int support = TList->supp_from_tidlist(iset);
-			if (support == minSupp) {
-				currClosure.insert(item);
-			}
-			iset.erase(item);
-		}
-		else {
-			iset.insert(item);
-			int support = TList->supp_from_tidlist(iset);
-			if (support == minSupp) {
-				currClosure.insert(item);
-			}
+		if (TList->closureIncludes(ISTL, item)) {
+			currClosure.insert(item);
 		}
 	}
+
+
 	ClosedIS* clos = findCI(currClosure, ClosureList);
 	if (clos == nullptr) {
 		clos = new ClosedIS(currClosure, minSupp, ClosureList);
@@ -297,10 +308,44 @@ int TIDList::supp_from_tidlist(std::set<uint32_t> itemset) { //TODO : start from
 		iset.erase(it1, iset.end());
 
 	}
-		//tant que ça crash/leak pas on verra plus tard
-		//ça vaut p.e. la peine de garder les résultats intermédiaires
-		//combinatoire pour la classe d'équivalence	
 	return iset.size();
+}
+
+bool TIDList::closureIncludes(std::set<uint32_t> currList, uint32_t item) {
+	return std::includes(this->TransactionList[item]->begin(), this->TransactionList[item]->end(), currList.begin(), currList.end());
+}
+
+int TIDList::singleInterSupp(uint32_t item, std::set<uint32_t> currTIDList) {
+	std::set<uint32_t> intersect;
+	set_intersection(currTIDList.begin(), currTIDList.end(), this->TransactionList[item]->begin(), this->TransactionList[item]->end(),
+		std::inserter(intersect, intersect.begin()));
+	return intersect.size();
+}
+
+std::set<uint32_t> TIDList::getISTL(std::set<uint32_t> itemset) {
+	std::set<uint32_t> iset = *this->TransactionList[*itemset.begin()];
+	for (auto item : itemset) {
+
+		std::set<uint32_t> itemList = *this->TransactionList[item];
+		std::set<uint32_t>::iterator it1 = iset.begin();
+		std::set<uint32_t>::iterator it2 = itemList.begin();
+
+		while ((it1 != iset.end()) && (it2 != itemList.end())) {
+			if (*it1 < *it2) {
+				iset.erase(it1++);
+			}
+			else if (*it2 < *it1) {
+				++it2;
+			}
+			else {
+				++it1;
+				++it2;
+			}
+		}
+		iset.erase(it1, iset.end());
+
+	}
+	return iset;
 }
 
 int TIDList::supp_singleton(uint32_t item) {
