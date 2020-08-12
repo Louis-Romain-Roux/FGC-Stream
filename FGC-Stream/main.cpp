@@ -108,7 +108,8 @@ int main(int argc, char** argv)
         }
     }
     std::cout << "Displaying all found generators as of transaction " << i << " :\n";
-    printAllClosuresWithGens(ClosureList);
+    //printAllClosuresWithGens(ClosureList);
+    printAllGens(root);
     std::cout << "Total number of generators: " << totalGens << "\n";
 
 
