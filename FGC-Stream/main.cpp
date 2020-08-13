@@ -21,7 +21,7 @@ void Addition(std::set<uint32_t> t_n, int n, GenNode* root, TIDList* TList, std:
 
     computeJumpers(root, t_n, newClosures, TList, root, ClosureList);
 
-    resetStatus(root); // This is needed to set all visited flags back to false and clear the candidate list
+    closureReset(ClosureList); // This is needed to set all visited flags back to false and clear the candidate list
 }
 
 // Helper function

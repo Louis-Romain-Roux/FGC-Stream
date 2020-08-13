@@ -234,6 +234,13 @@ void resetStatus(GenNode* n) {
 	}
 }
 
+void closureReset(std::multimap<uint32_t, ClosedIS*>* ClosureList) {
+	for (std::multimap<uint32_t, ClosedIS*>::iterator clos = ClosureList->begin(); clos != ClosureList->end(); clos++) {
+		clos->second->visited = false;
+		clos->second->candidates.clear();
+	}
+}
+
 GenNode* genLookUp(std::set<uint32_t> iset, GenNode* root) { // Will return nullptr if itemset is not in trie
 	GenNode* Node = root;
 	for (auto item : iset) {
