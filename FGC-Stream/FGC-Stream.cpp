@@ -82,15 +82,49 @@ void computeJumpers(GenNode* n, std::set<uint32_t> t_n, std::vector<ClosedIS*> n
 	for (std::map<uint32_t, GenNode*>::const_iterator child = n->succ->begin(); child != n->succ->end(); child++) {
 		computeJumpers(child->second, t_n, newClosures, TList, root, ClosureList);
 	}
-	
-	for (std::map<uint32_t, GenNode*>::const_iterator left = n->succ->begin(); left != n->succ->end(); left++) {
-		if (t_n.find(left->second->item) != t_n.end()) {
+
+	//The below is experimental, seems a bit faster.
+	std::set<uint32_t> intersect;
+	class key_iterator : public std::map<uint32_t, GenNode*>::iterator
+	{
+	public:
+		key_iterator() : std::map<uint32_t, GenNode*>::iterator() {};
+		key_iterator(std::map<uint32_t, GenNode*>::iterator s) : std::map<uint32_t, GenNode*>::iterator(s) {};
+		uint32_t* operator->() { return (uint32_t* const)&(std::map<uint32_t, GenNode*>::iterator::operator->()->first); }
+		uint32_t operator*() { return std::map<uint32_t, GenNode*>::iterator::operator*().first; }
+	};
+
+	key_iterator mybegin(n->succ->begin());
+	key_iterator myend(n->succ->end());
+
+	std::set_intersection
+	(mybegin, myend,
+		t_n.begin(), t_n.end(),
+		std::inserter(intersect, intersect.begin()));
+
+
+
+	//for(std::set<uint32_t>::const_iterator lefti = t_n.begin(); lefti!=t_n.end(); lefti++){
+	//for (std::map<uint32_t, GenNode*>::const_iterator left = n->succ->begin(); left != n->succ->end(); left++) {
+	for (std::set<uint32_t>::const_iterator lefti = intersect.begin(); lefti != intersect.end(); lefti++) {
+		//std::map<uint32_t, GenNode*>::iterator left = n->succ->find(*lefti);
+		GenNode* left = (*n->succ)[*lefti];
+		//if (left != n->succ->end()) {
+		//if (t_n.find(left->second->item) != t_n.end()) {
 			std::set<uint32_t> ISTL;
 			std::set<uint32_t> candIS;
-			for (std::map<uint32_t, GenNode*>::const_iterator right = std::next(left); right != n->succ->end(); right++) {
-				if (t_n.find(right->second->item) != t_n.end()) {
-					GenNode* leftN = left->second;
-					GenNode* rightN = right->second;
+			for (std::set<uint32_t>::const_iterator righti = std::next(lefti); righti != intersect.end(); righti++) {
+			//for (std::set<uint32_t>::const_iterator righti = std::next(lefti); righti != t_n.end(); righti++) {
+			//for (std::map<uint32_t, GenNode*>::const_iterator right = std::next(left); right != n->succ->end(); right++) {
+				//std::map<uint32_t, GenNode*>::iterator right = n->succ->find(*righti);
+				GenNode* right = (*n->succ)[*righti];
+
+				//if (right != n->succ->end()) {
+				//if (t_n.find(right->second->item) != t_n.end()) {
+					//GenNode* leftN = left->second;
+					//GenNode* rightN = right->second;
+					GenNode* leftN = left;
+					GenNode* rightN = right;
 					if (leftN->succ->find(rightN->item) == leftN->succ->end()) {
 						if (candIS.empty()) {
 							candIS = leftN->items();
@@ -124,8 +158,8 @@ void computeJumpers(GenNode* n, std::set<uint32_t> t_n, std::vector<ClosedIS*> n
 							}
 						}
 						candIS.erase(rightN->item);
-					}
-				}
+					//}
+				//}
 			}
 		}
 	}

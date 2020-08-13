@@ -7,6 +7,7 @@
 #include <algorithm>
 #include <numeric>
 
+
 struct ClosedIS;
 struct GenNode;
 struct TIDList;
