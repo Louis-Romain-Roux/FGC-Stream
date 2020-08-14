@@ -2,7 +2,7 @@
 #include "Transaction.h"
 #include <iostream>
 #include <fstream>
-
+#include <chrono>
 
 uint32_t NODE_ID = 0;
 uint32_t minSupp = 3;
@@ -21,7 +21,7 @@ void Addition(std::set<uint32_t> t_n, int n, GenNode* root, TIDList* TList, std:
 
     computeJumpers(root, t_n, newClosures, TList, root, ClosureList);
 
-    resetStatus(root); // This is needed to set all visited flags back to false and clear the candidate list
+    closureReset(ClosureList); // This is needed to set all visited flags back to false and clear the candidate list
 }
 
 // Helper function
@@ -67,6 +67,8 @@ void printAllClosuresWithGens(std::multimap<uint32_t, ClosedIS*> ClosureList) {
 
 int main(int argc, char** argv)
 {
+
+    auto start = std::chrono::high_resolution_clock::now();
     const uint32_t window_size = 1000;
     if (argc < 2) return 1;
     minSupp = strtoul(argv[2], 0, 10);//1;
@@ -138,13 +140,21 @@ int main(int argc, char** argv)
         Addition(t_n, i, root, TList, &ClosureList);
 
 
-        if (i % 10 == 0) {
+        if (i % 100 == 0) {
             std::cout << i << " transaction(s) processed" << std::endl;
         }
+<<<<<<< HEAD
 
         if (i % 2500 == 0) {
           break;
         }
+=======
+        if (i % 500 == 0) {
+            auto stop = std::chrono::high_resolution_clock::now();
+            std::cout << std::chrono::duration_cast<std::chrono::milliseconds>(stop-start).count() << " milliseconds elapsed between start and current transaction" << std::endl;
+        }
+        
+>>>>>>> b80ae7bfe478eb7b197584b36569ac812791da90
     }
     std::cout << "Displaying all found generators as of transaction " << i << " :\n";
     //printAllClosuresWithGens(ClosureList);
