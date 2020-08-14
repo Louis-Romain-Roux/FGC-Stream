@@ -68,7 +68,6 @@ void printAllClosuresWithGens(std::multimap<uint32_t, ClosedIS*> ClosureList) {
 int main(int argc, char** argv)
 {
     const uint32_t window_size = 1000;
-<<<<<<< HEAD
     if (argc < 2) return 1;
     minSupp = strtoul(argv[2], 0, 10);//1;
     std::ifstream input(/*"Datasets/in.txt"*/argv[1]);
@@ -141,6 +140,10 @@ int main(int argc, char** argv)
 
         if (i % 10 == 0) {
             std::cout << i << " transaction(s) processed" << std::endl;
+        }
+
+        if (i % 2500 == 0) {
+          break;
         }
     }
     std::cout << "Displaying all found generators as of transaction " << i << " :\n";
