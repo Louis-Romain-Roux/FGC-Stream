@@ -2,7 +2,7 @@
 #include "Transaction.h"
 #include <iostream>
 #include <fstream>
-
+#include <chrono>
 
 uint32_t NODE_ID = 0;
 uint32_t minSupp = 3;
@@ -66,6 +66,8 @@ void printAllClosuresWithGens(std::multimap<uint32_t, ClosedIS*> ClosureList) {
 
 int main()
 {
+
+    auto start = std::chrono::high_resolution_clock::now();
     const uint32_t window_size = 1000;
     std::ifstream input("Datasets/retail.txt");
     char s[10000];
@@ -135,9 +137,14 @@ int main()
         Addition(t_n, i, root, TList, &ClosureList);
 
 
-        if (i % 10 == 0) {
+        if (i % 100 == 0) {
             std::cout << i << " transaction(s) processed" << std::endl;
         }
+        if (i % 500 == 0) {
+            auto stop = std::chrono::high_resolution_clock::now();
+            std::cout << std::chrono::duration_cast<std::chrono::milliseconds>(stop-start).count() << " milliseconds elapsed between start and current transaction" << std::endl;
+        }
+        
     }
     std::cout << "Displaying all found generators as of transaction " << i << " :\n";
     printAllClosuresWithGens(ClosureList);
