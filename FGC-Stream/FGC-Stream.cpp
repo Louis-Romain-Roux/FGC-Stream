@@ -2,7 +2,7 @@
 #include "FGC-Stream.h"
 
 
-
+// ADDITION ROUTINE
 void descend(GenNode* n, std::set<uint32_t> X, std::set<uint32_t> t_n, std::multimap < uint32_t, ClosedIS* >* fGenitors, std::multimap<uint32_t, ClosedIS*>* ClosureList) {
 	if (n->item != 0) { // 0 is reserved for the root, so n->item = 0 actually means n is the empty set
 		X.insert(n->item);
@@ -30,6 +30,7 @@ void descend(GenNode* n, std::set<uint32_t> X, std::set<uint32_t> t_n, std::mult
 		else {
 			closure = n->clos->newCI;
 		}
+		//breaks here
 		closure->gens.insert(n);
 		n->clos->gens.erase(n);
 		std::set<uint32_t> face;
@@ -102,7 +103,8 @@ void computeJumpers(GenNode* n, std::set<uint32_t> t_n, std::vector<ClosedIS*> n
 		t_n.begin(), t_n.end(),
 		std::inserter(intersect, intersect.begin()));
 
-
+	//Different ways of iterating
+	//The fastest way (limited testing done) seems to be the uncommented version below.
 
 	//for(std::set<uint32_t>::const_iterator lefti = t_n.begin(); lefti!=t_n.end(); lefti++){
 	//for (std::map<uint32_t, GenNode*>::const_iterator left = n->succ->begin(); left != n->succ->end(); left++) {
@@ -126,6 +128,7 @@ void computeJumpers(GenNode* n, std::set<uint32_t> t_n, std::vector<ClosedIS*> n
 					GenNode* leftN = left;
 					GenNode* rightN = right;
 					if (leftN->succ->find(rightN->item) == leftN->succ->end()) {
+						testedJp++;
 						if (candIS.empty()) {
 							candIS = leftN->items();
 							ISTL = TList->getISTL(candIS);
@@ -241,6 +244,155 @@ void closureReset(std::multimap<uint32_t, ClosedIS*>* ClosureList) {
 	}
 }
 
+// DELETION ROUTINE
+
+std::ostream& operator<<(std::ostream& os, ClosedIS CI) {
+	os << "CI {";
+	for (auto x : CI.itemset) {
+		os << x << " ";
+	}
+	os << "} has gens: ";
+	for (auto x : CI.gens) {
+		os << "{";
+		for (auto y : x->items()) {
+			os << y << " ";
+		}
+		os << "}, ";
+	}
+	return os;
+}
+
+bool descendM(GenNode* n, std::set<uint32_t> X, std::set<uint32_t> t_n, bool met, std::set<GenNode*>* iJumpers, std::multimap<uint32_t, ClosedIS*>* ClosureList, GenNode* root, std::set<ClosedIS*>* obsolClos) {
+
+	if (!met) {
+		if (t_n.find(n->item) != t_n.end() || n->item == 0) {
+			if (!n->clos->visited) {
+				n->clos->support--;
+				n->clos->visited = true;
+			}
+			if (n->clos->support < minSupp) {
+				iJumpers->insert(n);
+				return false;
+			}
+			// Erasing values in a map while iterating causes issues
+			// TODO : fix it
+			std::vector <uint32_t> mustDelete;
+			for (std::map<uint32_t, GenNode*>::reverse_iterator child = n->succ->rbegin(); child != n->succ->rend(); ++child) {
+				if (n->item != 0) {
+					X.insert(n->item);
+				}
+				if (child->second->item == 49) {
+					int a = 1;
+				}
+				bool needDelete = descendM(child->second, X, t_n, met, iJumpers, ClosureList, root, obsolClos);
+				X.erase(n->item);
+				if (needDelete) {
+					mustDelete.push_back(child->second->item);
+				}
+			}
+			for (std::vector<uint32_t>::iterator node = mustDelete.begin(); node != mustDelete.end(); node++) {
+				n->succ->erase(*node);
+			}
+
+			return false;
+		}
+		else {
+			for (std::map<uint32_t, GenNode*>::reverse_iterator child = n->succ->rbegin(); child != n->succ->rend(); ++child) {
+				if (t_n.find(child->second->item) != t_n.end()) {
+					descendM(n, X, t_n, true, iJumpers, ClosureList, root, obsolClos);
+				}
+			}
+			return processObsolete(n, X, met, root, obsolClos);
+		}
+	}
+	else {
+		if (t_n.find(n->item) != t_n.end()) {
+			for (std::map<uint32_t, GenNode*>::reverse_iterator child = n->succ->rbegin(); child != n->succ->rend(); ++child) {
+				if (t_n.find(child->second->item) != t_n.end()) {
+					X.insert(child->second->item);
+					descendM(child->second, X, t_n, true, iJumpers, ClosureList, root, obsolClos);
+					X.erase(child->second->item);
+				}
+			}
+			X.insert(n->item);
+			processObsolete(n, X, met, root, obsolClos);
+			X.erase(n->item);
+			return false;
+		}
+	}
+}
+
+bool processObsolete(GenNode* n, std::set<uint32_t> X, bool met, GenNode* root, std::set<ClosedIS*>* obsolClos ) {
+	GenNode* parent;
+	if (met) {
+		parent = genLookUp(X, root);
+	}
+	else {
+		parent = n->parent;
+	}
+	int suppInt = parent->clos->support;
+	if (n->clos->support == suppInt) {
+		if (!n->clos->visited) {
+			obsolClos->insert(parent->clos);
+			n->clos->visited = true;
+		}
+		parent->clos->gens.erase(parent);
+		parent->clos = n->clos;
+		parent->clos->gens.insert(parent);
+		parent->clos->gens.erase(n);
+		if (met) {
+			parent->succ->erase(n->item);
+			return false;
+		}
+
+		return true;
+
+	}
+	return false;
+}
+
+void cleanJumpers(std::set<GenNode*>* iJumpers, std::set<ClosedIS*>* obsolClos, std::multimap<uint32_t, ClosedIS*>* ClosureList) {
+
+	for (std::set<GenNode*>::iterator jumper = iJumpers->begin(); jumper != iJumpers->end(); jumper++) {
+		if (!(*jumper)->clos->visited) {
+			obsolClos->insert((*jumper)->clos);
+			(*jumper)->clos->visited = true;
+		}
+		(*jumper)->parent->succ->erase((*jumper)->item);
+		(*jumper)->clos->gens.erase(*jumper);
+	}
+	for (std::set<ClosedIS*>::iterator closure = obsolClos->begin(); closure != obsolClos->end(); closure++) {
+		if ((*closure)->gens.size() != 0) {
+			std::cout << "nonempty genlist\n";
+			std::cout << *(*closure) << "\n";
+			for (auto x : (*closure)->gens) {
+				std::cout << *(x->clos) << "\n";
+			}
+		}
+
+	}
+	
+	for (std::set<ClosedIS*>::iterator closure = obsolClos->begin(); closure != obsolClos->end(); closure++) {
+		std::pair<std::multimap<uint32_t, ClosedIS*>::iterator, std::multimap<uint32_t, ClosedIS*>::iterator> iterpair = ClosureList->equal_range(CISSum((*closure)->itemset));
+		std::multimap<uint32_t, ClosedIS*>::iterator it = iterpair.first;
+		for (; it != iterpair.second; ++it) {
+			if (it->second == *closure) {
+				ClosureList->erase(it);
+				break;
+			}
+		}
+	}
+	
+}
+
+void jumperReset(std::set<GenNode*>* iJumpers) {
+	for (std::set<GenNode*>::iterator jumper = iJumpers->begin(); jumper != iJumpers->end(); jumper++) {
+		(*jumper)->clos->visited = false;
+	}
+}
+
+
+
 GenNode* genLookUp(std::set<uint32_t> iset, GenNode* root) { // Will return nullptr if itemset is not in trie
 	GenNode* Node = root;
 	for (auto item : iset) {
@@ -322,6 +474,18 @@ void TIDList::add(std::set<uint32_t> t_n, uint32_t n) {
 		this->singletonSupport[item]++;
 	}
 }
+
+void TIDList::remove(std::set<uint32_t> t_n, uint32_t n) {
+	for (auto item : t_n) {
+		this->TransactionList[item]->erase(n);
+		this->singletonSupport[item]--;
+		if (this->TransactionList[item]->empty()) {
+			this->TransactionList.erase(item);
+		}
+	}
+}
+
+
 
 int TIDList::supp_from_tidlist(std::set<uint32_t> itemset) { //TODO : start from a known tidlist and agregate other items one at a time
 	std::set<uint32_t> iset = *this->TransactionList[*itemset.begin()];
