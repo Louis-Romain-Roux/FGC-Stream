@@ -29,9 +29,6 @@
     <ClInclude Include="FGC-Stream\Transaction.h">
       <Filter>Fichiers d%27en-tête</Filter>
     </ClInclude>
-    <ClInclude Include="FGC-Stream\util.h">
-      <Filter>Fichiers d%27en-tête</Filter>
-    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <Text Include="Datasets\in.txt" />
