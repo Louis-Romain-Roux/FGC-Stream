@@ -52,7 +52,7 @@ void descend(GenNode* n, std::set<uint32_t> X, std::set<uint32_t> t_n, std::mult
 	}
 }
 
-void filterCandidates(std::multimap < uint32_t, ClosedIS* >* fGenitors, GenNode* root) {
+void filterCandidates(std::multimap < uint32_t, ClosedIS* >* fGenitors, GenNode* root, std::multimap<uint32_t, ClosedIS*>* ClosureList) {
 	for (auto genitor : *fGenitors) {
 		for (auto iset : genitor.second->candidates) {
 			bool sset = false;
@@ -75,7 +75,40 @@ void filterCandidates(std::multimap < uint32_t, ClosedIS* >* fGenitors, GenNode*
 
 			}
 		}
+		std::set<std::set<uint32_t>*> preds = computePreds(genitor.second);
+		uint32_t key = CISSum(genitor.second->itemset);
+		for (std::multimap<uint32_t, ClosedIS*>::iterator currP = genitor.second->preds.begin(); currP != genitor.second->preds.end(); ++currP) {
+			std::pair<std::multimap<uint32_t, ClosedIS*>::iterator, std::multimap<uint32_t, ClosedIS*>::iterator> iterpair = currP->second->succ.equal_range(key);
+			std::multimap<uint32_t, ClosedIS*>::iterator it = iterpair.first;
+			for (; it != iterpair.second; ++it) {
+				if (it->second == genitor.second) {
+					currP->second->succ.erase(it);
+					break;
+				}
+			}
+		}
+		
+		for (std::set<std::set<uint32_t>*>::iterator pred = preds.begin(); pred != preds.end(); ++pred) {
+
+			ClosedIS* predNode = findCI(**pred, ClosureList);
+			predNode->succ.insert(std::make_pair(key, genitor.second));
+			genitor.second->preds.insert(std::make_pair(CISSum(**pred), predNode));
+
+		}
+		preds = computePreds(genitor.second->newCI);
+		key = CISSum(genitor.second->newCI->itemset);
+
+		for (std::set<std::set<uint32_t>*>::iterator pred = preds.begin(); pred != preds.end(); ++pred) {
+
+			ClosedIS* predNode = findCI(**pred, ClosureList);
+			predNode->succ.insert(std::make_pair(key, genitor.second->newCI));
+			genitor.second->newCI->preds.insert(std::make_pair(CISSum(**pred), predNode));
+
+		}
+		
 	}
+
+
 }
 
 void computeJumpers(GenNode* n, std::set<uint32_t> t_n, std::vector<ClosedIS*> newClosures, TIDList* TList, GenNode* root, std::multimap<uint32_t, ClosedIS*>* ClosureList) {
@@ -128,7 +161,6 @@ void computeJumpers(GenNode* n, std::set<uint32_t> t_n, std::vector<ClosedIS*> n
 					GenNode* leftN = left;
 					GenNode* rightN = right;
 					if (leftN->succ->find(rightN->item) == leftN->succ->end()) {
-						testedJp++;
 						if (candIS.empty()) {
 							candIS = leftN->items();
 							ISTL = TList->getISTL(candIS);
@@ -229,6 +261,63 @@ std::pair<bool,ClosedIS*> computeClosure(GenNode* gen, std::set<uint32_t> t_n, s
 	return std::make_pair(false, clos);
 }
 
+
+std::set<std::set<uint32_t>*> computePreds(ClosedIS* clos) {
+	std::set<std::set<uint32_t>*> faces;
+	
+	std::multimap<uint32_t, std::set<uint32_t>*> faceCandidates;
+
+	GenNode* firstGenN = *clos->gens.begin();
+	std::set<uint32_t> firstIS = firstGenN->items();
+
+	for (std::set<uint32_t>::iterator item = firstIS.begin(); item != firstIS.end(); ++item) {
+		std::set<uint32_t>* newFace = new std::set<uint32_t>;
+		newFace->insert(*item);
+		faces.insert(newFace);
+	}
+
+	for (std::set<GenNode*>::iterator gen = ++clos->gens.begin(); gen != clos->gens.end(); ++gen) {
+		std::set<uint32_t> IS = (*gen)->items();
+		for (std::set<uint32_t>::iterator item = IS.begin(); item != IS.end(); ++item) {
+			for (std::set<std::set<uint32_t>*>::iterator pred = faces.begin(); pred != faces.end(); ++pred) {
+				std::set<uint32_t>* newFace = new std::set<uint32_t>;
+				newFace->insert((*pred)->begin(), (*pred)->end());
+				newFace->insert(*item);
+				faceCandidates.insert(std::make_pair(newFace->size(), newFace));
+			}
+		}
+		faces.clear();
+		for (std::multimap<uint32_t, std::set<uint32_t>*>::iterator cand = faceCandidates.begin(); cand != faceCandidates.end(); ++cand) {
+			bool minimal = true;
+			for (std::set<std::set<uint32_t>*>::iterator pred = faces.begin(); pred != faces.end(); ++pred) {
+				if (std::includes(cand->second->begin(), cand->second->end(), (*pred)->begin(), (*pred)->end())) {
+					minimal = false;
+					break;
+				}
+				if (minimal) {
+					faces.insert(cand->second);
+				}
+			}
+		}
+		faceCandidates.clear();
+	}
+	std::set<std::set<uint32_t>*> preds;
+	for (std::set<std::set<uint32_t>*>::iterator face = faces.begin(); face != faces.end(); ++face) {
+		std::set<uint32_t>* pred = new std::set<uint32_t>;
+		std::set_difference(clos->itemset.begin(), clos->itemset.end(), (*face)->begin(), (*face)->end(),
+			std::inserter(*pred, pred->end()));
+		preds.insert(pred);
+	}
+
+	return preds;
+}
+
+
+
+
+
+
+
 void resetStatus(GenNode* n) {
 	n->clos->visited = false;
 	n->clos->candidates.clear();
@@ -241,153 +330,6 @@ void closureReset(std::multimap<uint32_t, ClosedIS*>* ClosureList) {
 	for (std::multimap<uint32_t, ClosedIS*>::iterator clos = ClosureList->begin(); clos != ClosureList->end(); clos++) {
 		clos->second->visited = false;
 		clos->second->candidates.clear();
-	}
-}
-
-// DELETION ROUTINE
-
-std::ostream& operator<<(std::ostream& os, ClosedIS CI) {
-	os << "CI {";
-	for (auto x : CI.itemset) {
-		os << x << " ";
-	}
-	os << "} has gens: ";
-	for (auto x : CI.gens) {
-		os << "{";
-		for (auto y : x->items()) {
-			os << y << " ";
-		}
-		os << "}, ";
-	}
-	return os;
-}
-
-bool descendM(GenNode* n, std::set<uint32_t> X, std::set<uint32_t> t_n, bool met, std::set<GenNode*>* iJumpers, std::multimap<uint32_t, ClosedIS*>* ClosureList, GenNode* root, std::set<ClosedIS*>* obsolClos) {
-
-	if (!met) {
-		if (t_n.find(n->item) != t_n.end() || n->item == 0) {
-			if (!n->clos->visited) {
-				n->clos->support--;
-				n->clos->visited = true;
-			}
-			if (n->clos->support < minSupp) {
-				iJumpers->insert(n);
-				return false;
-			}
-			// Erasing values in a map while iterating causes issues
-			// TODO : fix it
-			std::vector <uint32_t> mustDelete;
-			for (std::map<uint32_t, GenNode*>::reverse_iterator child = n->succ->rbegin(); child != n->succ->rend(); ++child) {
-				if (n->item != 0) {
-					X.insert(n->item);
-				}
-				if (child->second->item == 49) {
-					int a = 1;
-				}
-				bool needDelete = descendM(child->second, X, t_n, met, iJumpers, ClosureList, root, obsolClos);
-				X.erase(n->item);
-				if (needDelete) {
-					mustDelete.push_back(child->second->item);
-				}
-			}
-			for (std::vector<uint32_t>::iterator node = mustDelete.begin(); node != mustDelete.end(); node++) {
-				n->succ->erase(*node);
-			}
-
-			return false;
-		}
-		else {
-			for (std::map<uint32_t, GenNode*>::reverse_iterator child = n->succ->rbegin(); child != n->succ->rend(); ++child) {
-				if (t_n.find(child->second->item) != t_n.end()) {
-					descendM(n, X, t_n, true, iJumpers, ClosureList, root, obsolClos);
-				}
-			}
-			return processObsolete(n, X, met, root, obsolClos);
-		}
-	}
-	else {
-		if (t_n.find(n->item) != t_n.end()) {
-			for (std::map<uint32_t, GenNode*>::reverse_iterator child = n->succ->rbegin(); child != n->succ->rend(); ++child) {
-				if (t_n.find(child->second->item) != t_n.end()) {
-					X.insert(child->second->item);
-					descendM(child->second, X, t_n, true, iJumpers, ClosureList, root, obsolClos);
-					X.erase(child->second->item);
-				}
-			}
-			X.insert(n->item);
-			processObsolete(n, X, met, root, obsolClos);
-			X.erase(n->item);
-			return false;
-		}
-	}
-}
-
-bool processObsolete(GenNode* n, std::set<uint32_t> X, bool met, GenNode* root, std::set<ClosedIS*>* obsolClos ) {
-	GenNode* parent;
-	if (met) {
-		parent = genLookUp(X, root);
-	}
-	else {
-		parent = n->parent;
-	}
-	int suppInt = parent->clos->support;
-	if (n->clos->support == suppInt) {
-		if (!n->clos->visited) {
-			obsolClos->insert(parent->clos);
-			n->clos->visited = true;
-		}
-		parent->clos->gens.erase(parent);
-		parent->clos = n->clos;
-		parent->clos->gens.insert(parent);
-		parent->clos->gens.erase(n);
-		if (met) {
-			parent->succ->erase(n->item);
-			return false;
-		}
-
-		return true;
-
-	}
-	return false;
-}
-
-void cleanJumpers(std::set<GenNode*>* iJumpers, std::set<ClosedIS*>* obsolClos, std::multimap<uint32_t, ClosedIS*>* ClosureList) {
-
-	for (std::set<GenNode*>::iterator jumper = iJumpers->begin(); jumper != iJumpers->end(); jumper++) {
-		if (!(*jumper)->clos->visited) {
-			obsolClos->insert((*jumper)->clos);
-			(*jumper)->clos->visited = true;
-		}
-		(*jumper)->parent->succ->erase((*jumper)->item);
-		(*jumper)->clos->gens.erase(*jumper);
-	}
-	for (std::set<ClosedIS*>::iterator closure = obsolClos->begin(); closure != obsolClos->end(); closure++) {
-		if ((*closure)->gens.size() != 0) {
-			std::cout << "nonempty genlist\n";
-			std::cout << *(*closure) << "\n";
-			for (auto x : (*closure)->gens) {
-				std::cout << *(x->clos) << "\n";
-			}
-		}
-
-	}
-	
-	for (std::set<ClosedIS*>::iterator closure = obsolClos->begin(); closure != obsolClos->end(); closure++) {
-		std::pair<std::multimap<uint32_t, ClosedIS*>::iterator, std::multimap<uint32_t, ClosedIS*>::iterator> iterpair = ClosureList->equal_range(CISSum((*closure)->itemset));
-		std::multimap<uint32_t, ClosedIS*>::iterator it = iterpair.first;
-		for (; it != iterpair.second; ++it) {
-			if (it->second == *closure) {
-				ClosureList->erase(it);
-				break;
-			}
-		}
-	}
-	
-}
-
-void jumperReset(std::set<GenNode*>* iJumpers) {
-	for (std::set<GenNode*>::iterator jumper = iJumpers->begin(); jumper != iJumpers->end(); jumper++) {
-		(*jumper)->clos->visited = false;
 	}
 }
 
@@ -552,4 +494,21 @@ std::set<uint32_t> TIDList::getISTL(std::set<uint32_t> itemset) {
 
 int TIDList::supp_singleton(uint32_t item) {
 	return this->singletonSupport[item];
+}
+
+
+std::ostream& operator<<(std::ostream& os, ClosedIS CI) {
+	os << "CI {";
+	for (auto x : CI.itemset) {
+		os << x << " ";
+	}
+	os << "} has gens: ";
+	for (auto x : CI.gens) {
+		os << "{";
+		for (auto y : x->items()) {
+			os << y << " ";
+		}
+		os << "}, ";
+	}
+	return os;
 }

@@ -7,9 +7,9 @@
 uint32_t NODE_ID = 0;
 uint32_t minSupp = 1;
 uint32_t totalGens = 0;
-const uint32_t windowSize = 6;
+const uint32_t windowSize = 100;
 
-std::set<uint32_t>* TListByID[windowSize];
+//std::set<uint32_t>* TListByID[windowSize];
 
 int testedJp = 0;
 float sumJp = 0;
@@ -23,34 +23,33 @@ void Addition(std::set<uint32_t> t_n, int n, GenNode* root, TIDList* TList, std:
 
     descend(root, emptySet, t_n, &fGenitors, ClosureList);
 
-    filterCandidates(&fGenitors, root);
+    filterCandidates(&fGenitors, root, ClosureList);
     std::vector<ClosedIS*> newClosures;
     
-    testedJp = 0;
     computeJumpers(root, t_n, newClosures, TList, root, ClosureList);
-    //std::cout << testedJp << " jumpers tested.\n";
-    sumJp += testedJp;
-    if (n % 100 == 0) {
-        std::cout << sumJp/(n+1) << " average jumpers.\n";
+
+    for (std::vector<ClosedIS*>::iterator jClos = newClosures.begin(); jClos != newClosures.end(); ++jClos) {
+        std::set<std::set<uint32_t>*> preds = computePreds(*jClos);
+        uint32_t key = CISSum((*jClos)->itemset);
+
+        for (std::set<std::set<uint32_t>*>::iterator pred = preds.begin(); pred != preds.end(); ++pred) {
+
+            ClosedIS* predNode = findCI(**pred, ClosureList);
+            predNode->succ.insert(std::make_pair(key, *jClos));
+            (*jClos)->preds.insert(std::make_pair(CISSum(**pred), predNode));
+
+        }
+    
     }
+
+    //std::cout << testedJp << " jumpers tested.\n";
     closureReset(ClosureList); // This is needed to set all visited flags back to false and clear the candidate list
 }
 
-void Deletion(std::set<uint32_t> t_0, int n, GenNode* root, TIDList* TList, std::multimap<uint32_t, ClosedIS*>* ClosureList) {
-    
-    std::set<uint32_t> X;
-    std::set<GenNode*>* iJumpers = new std::set<GenNode*>;
-    std::set<ClosedIS*>* obsolClos = new std::set<ClosedIS*>;
 
-    TList->remove(t_0, n);
-    descendM(root, X, t_0, false, iJumpers, ClosureList, root, obsolClos);
-    jumperReset(iJumpers);
-    cleanJumpers(iJumpers, obsolClos, ClosureList);
-    closureReset(ClosureList);
 
-}
 
-// Helper function
+// Helper functions
 void printAllGens(GenNode* node) {
     totalGens = 0;
     for (auto child : *node->succ) {
@@ -89,17 +88,35 @@ void printAllClosuresWithGens(std::multimap<uint32_t, ClosedIS*> ClosureList) {
     }
 }
 
+void printClosureOrder(std::multimap<uint32_t, ClosedIS*> ClosureList) {
+    for (std::multimap<uint32_t, ClosedIS*>::iterator clos = ClosureList.begin(); clos != ClosureList.end(); ++clos) {
+        ClosedIS currCI = *clos->second;
+        std::cout << "Closed itemset { ";
+        for (auto item : currCI.itemset) {
+            std::cout << item << " ";
+        }
+        std::cout << "} (" << currCI.support << ") has children : ";
+        for (std::multimap<uint32_t, ClosedIS*>::iterator child = currCI.succ.begin(); child != currCI.succ.end(); ++child) {
+            ClosedIS currChild = *child->second;
+            std::cout << "{";
+            for (auto item : currChild.itemset) {
+                std::cout << item << " ";
+            }
+            std::cout << "}, ";
+        }
+        std::cout << "\n";
+    }
+}
 
 int main()
 {
 
-    for (int k = 0; k < windowSize; k++) {
-        TListByID[k] = new std::set<uint32_t>;
-    }
+    //for (int k = 0; k < windowSize; k++) {
+    //    TListByID[k] = new std::set<uint32_t>;
+    //}
 
     auto start = std::chrono::high_resolution_clock::now();
-    const uint32_t window_size = 1000;
-    std::ifstream input("Datasets/in.txt");
+    std::ifstream input("Datasets/retail.txt");
     char s[10000];
     uint32_t i = 0;
 
@@ -114,7 +131,7 @@ int main()
     Transaction<uint32_t> new_transaction = Transaction<uint32_t>(pch, " ", 0);
     i++;
     std::vector<uint32_t> closSetvec = *new_transaction.data();
-    TListByID[i % windowSize]->insert(closSetvec.begin(), closSetvec.end());
+    //TListByID[i % windowSize]->insert(closSetvec.begin(), closSetvec.end());
     
     closSet.insert(closSetvec.begin(), closSetvec.end());
     TList->add(closSet, i);
@@ -125,7 +142,7 @@ int main()
         Transaction<uint32_t> new_transaction = Transaction<uint32_t>(pch, " ", 0);
         i++;
         std::vector<uint32_t> closSetvec = *new_transaction.data();
-        TListByID[i % windowSize]->insert(closSetvec.begin(), closSetvec.end());
+        //TListByID[i % windowSize]->insert(closSetvec.begin(), closSetvec.end());
 
         std::set<uint32_t> closSetPart(closSetvec.begin(), closSetvec.end());
         TList->add(closSetPart, i);
@@ -159,14 +176,7 @@ int main()
     while (input.getline(s, 10000)) {
         i++;
         char* pch = strtok(s, " ");
-        if (root->succ->find(39) != root->succ->end()) {
-            std::cout << (*root->succ)[39]->clos->visited;
 
-        }
-        std::cout << "Processing xact " << i << std::endl;
-        if (i==8) {
-            std::cout << "break";
-        }
 
         Transaction<uint32_t> new_transaction = Transaction<uint32_t>(pch, " ", 0);
         std::vector<uint32_t> t_nVec = *new_transaction.data();
@@ -176,16 +186,18 @@ int main()
 
         Addition(t_n, i, root, TList, &ClosureList);
 
+        /*
         if (i > windowSize) {
             Deletion(*TListByID[i%windowSize], i-windowSize, root, TList, &ClosureList);
         }
         TListByID[i % windowSize]->clear();
         TListByID[i % windowSize]->insert(t_n.begin(), t_n.end());
+        */
 
-        if (i % 100 == 0) {
+        if (i % 10 == 0) {
             std::cout << i << " transactions processed" << std::endl;
         }
-        if (i % 500 == 0) {
+        if (i % 50 == 0) {
             auto stop = std::chrono::high_resolution_clock::now();
             std::cout << std::chrono::duration_cast<std::chrono::milliseconds>(stop-start).count() << " milliseconds elapsed between start and current transaction" << std::endl;
         }
@@ -194,6 +206,7 @@ int main()
     std::cout << "Displaying all found generators as of transaction " << i << " :\n";
     printAllClosuresWithGens(ClosureList);
     std::cout << "Total number of generators: " << totalGens << "\n";
+    printClosureOrder(ClosureList);
 
 
     return 0;
