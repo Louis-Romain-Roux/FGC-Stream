@@ -53,10 +53,12 @@ void descend(GenNode* n, std::set<uint32_t> X, std::set<uint32_t> t_n, std::mult
 }
 
 void filterCandidates(std::multimap < uint32_t, ClosedIS* >* fGenitors, GenNode* root, std::multimap<uint32_t, ClosedIS*>* ClosureList) {
-	for (auto genitor : *fGenitors) {
-		for (auto iset : genitor.second->candidates) {
+	for (std::multimap<uint32_t, ClosedIS*>::iterator genitorEntry = fGenitors->begin(); genitorEntry != fGenitors->end(); ++genitorEntry) {
+		ClosedIS* genitor = genitorEntry->second;
+
+		for (auto iset : genitor->candidates) {
 			bool sset = false;
-			for (auto n : genitor.second->gens) {
+			for (auto n : genitor->gens) {
 				std::set<uint32_t> itemset = n->items();
 				if (std::includes(iset->begin(), iset->end(), itemset.begin(), itemset.end())) {
 					sset = true;
@@ -69,46 +71,47 @@ void filterCandidates(std::multimap < uint32_t, ClosedIS* >* fGenitors, GenNode*
 				std::set<uint32_t> copy = *iset;
 				GenNode* father = genLookUp(copy, root);
 				if (father != nullptr) {
-					GenNode* newGI = new GenNode(lastItem, father, genitor.second);
-					genitor.second->gens.insert(newGI);
+					GenNode* newGI = new GenNode(lastItem, father, genitor);
+					genitor->gens.insert(newGI);
 				}
 
 			}
 		}
-		std::set<std::set<uint32_t>*> preds = computePreds(genitor.second);
-		uint32_t key = CISSum(genitor.second->itemset);
-		for (std::multimap<uint32_t, ClosedIS*>::iterator currP = genitor.second->preds.begin(); currP != genitor.second->preds.end(); ++currP) {
-			std::pair<std::multimap<uint32_t, ClosedIS*>::iterator, std::multimap<uint32_t, ClosedIS*>::iterator> iterpair = currP->second->succ.equal_range(key);
+
+		//std::set<std::set<uint32_t>*> preds = computePreds(genitor->newCI);
+		std::set<std::set<uint32_t>*> preds = compute_preds_efficient(genitor->newCI);
+		uint32_t key = CISSum(genitor->newCI->itemset);
+		uint32_t oldKey = CISSum(genitor->itemset);
+
+		for (std::set<std::set<uint32_t>*>::iterator pred = preds.begin(); pred != preds.end(); ++pred) {
+
+			ClosedIS* predNode = findCI(**pred, ClosureList);
+			predNode->succ.insert(std::make_pair(key, genitor->newCI));
+			std::pair<std::multimap<uint32_t, ClosedIS*>::iterator, std::multimap<uint32_t, ClosedIS*>::iterator> iterpair = predNode->succ.equal_range(oldKey);
 			std::multimap<uint32_t, ClosedIS*>::iterator it = iterpair.first;
 			for (; it != iterpair.second; ++it) {
-				if (it->second == genitor.second) {
-					currP->second->succ.erase(it);
+				if (it->second == genitor) {
+					predNode->succ.erase(it);
 					break;
 				}
 			}
-		}
-		
-		for (std::set<std::set<uint32_t>*>::iterator pred = preds.begin(); pred != preds.end(); ++pred) {
-
-			ClosedIS* predNode = findCI(**pred, ClosureList);
-			predNode->succ.insert(std::make_pair(key, genitor.second));
-			genitor.second->preds.insert(std::make_pair(CISSum(**pred), predNode));
+			genitor->newCI->preds.insert(std::make_pair(CISSum(**pred), predNode));
 
 		}
-		preds = computePreds(genitor.second->newCI);
-		key = CISSum(genitor.second->newCI->itemset);
 
-		for (std::set<std::set<uint32_t>*>::iterator pred = preds.begin(); pred != preds.end(); ++pred) {
+		std::multimap<uint32_t, ClosedIS*> newPreds;
 
-			ClosedIS* predNode = findCI(**pred, ClosureList);
-			predNode->succ.insert(std::make_pair(key, genitor.second->newCI));
-			genitor.second->newCI->preds.insert(std::make_pair(CISSum(**pred), predNode));
+		std::set_difference(std::make_move_iterator(genitor->preds.begin()), std::make_move_iterator(genitor->preds.end()),
+			genitor->newCI->preds.begin(), genitor->newCI->preds.end(),
+			std::inserter(newPreds, newPreds.begin())
+		);
 
-		}
-		
+		genitor->preds.swap(newPreds);
+		genitor->preds.insert(std::make_pair(key, genitor->newCI));
+		genitor->newCI->succ.insert(std::make_pair(oldKey, genitor));
+
+
 	}
-
-
 }
 
 void computeJumpers(GenNode* n, std::set<uint32_t> t_n, std::vector<ClosedIS*> newClosures, TIDList* TList, GenNode* root, std::multimap<uint32_t, ClosedIS*>* ClosureList) {
@@ -261,7 +264,7 @@ std::pair<bool,ClosedIS*> computeClosure(GenNode* gen, std::set<uint32_t> t_n, s
 	return std::make_pair(false, clos);
 }
 
-
+// UNUSED
 std::set<std::set<uint32_t>*> computePreds(ClosedIS* clos) {
 	std::set<std::set<uint32_t>*> faces;
 	
@@ -311,6 +314,165 @@ std::set<std::set<uint32_t>*> computePreds(ClosedIS* clos) {
 
 	return preds;
 }
+
+using namespace std;
+
+set<set<uint32_t>*> compute_preds_efficient(ClosedIS* clos) {
+	vector<vector<uint32_t>> _generators;
+	//Fill with generators
+	for (set<GenNode*>::iterator genIt = clos->gens.begin(); genIt != clos->gens.end(); ++genIt) {
+		set<uint32_t> itemsS = (*genIt)->items();
+		vector<uint32_t> itemsV(itemsS.begin(), itemsS.end());
+		_generators.push_back(itemsV);
+	}
+
+	vector<set<uint32_t>>* _faces = new vector<set<uint32_t>>;
+	vector<set<uint32_t>> faceTemp;
+
+	// 1 - Create mono-face face
+	for (size_t i = 0; i != _generators[0].size(); ++i) {
+		set<uint32_t> face = set<uint32_t>();
+		face.insert(_generators[0][i]);
+		_faces->push_back(face);
+	}
+
+	/*if (_generators[0].size() == 31 && _generators.size() == 1) {
+	  std::cout << "lol" << std::endl;
+	}*/
+
+	std::vector<std::vector<set<uint32_t>*>> test_strat_face;
+	test_strat_face.reserve(_generators.size() + 1);
+	// 2 - loop all gens 
+	for (size_t i = 1; i != _generators.size(); ++i) {
+		if (_generators[i].size() == 0) {
+			std::cout << "" << std::endl;
+			exit(1);
+		}
+		//std::map<uint32_t, std::vector<size_t>> test_index_gen;
+		test_strat_face.clear();
+		// loop on one face
+		for (size_t j = 0; j != _generators[i].size(); ++j) {
+
+			// grow mono-gens
+			for (size_t k = 0; k != _faces->size(); ++k) {
+				set<uint32_t> face = _faces->at(k);
+				face.insert(_generators[i][j]);
+				faceTemp.push_back(face);
+				if (!(test_strat_face.size() > face.size())) {
+					test_strat_face.resize(face.size() + 1);
+				}
+				test_strat_face[face.size()].push_back(&face);
+			}
+		}
+
+		// Check minimality
+		_faces->clear();
+
+		for (size_t j = 0; j != faceTemp.size(); ++j) {
+			// check min
+			// if min -> _faces
+			set<uint32_t>* g = &faceTemp.at(j);
+			bool was_broken = false;
+			//loop and include
+			/*for (size_t ll = 0; ll != g->size(); ++ll) {
+			  vector<set<uint32_t>*>* ttttt = &test_strat_face[ll];
+
+			  for (size_t z = 0; z != ttttt->size(); ++z) {
+				set<uint32_t>* gg = ttttt->at(z);// &faceTemp.at(ttttt->at(z));
+				if (includes(g->begin(), g->end(), gg->begin(), gg->end())) {
+				  was_broken = true;
+				  break;
+				}
+			  }
+			  if(was_broken) break;
+
+			  //std::vector<size_t>::iterator it = ttttt->begin();
+			  //for (; it != ttttt->end(); ++it) {
+			  //  set<uint32_t>* gg = &faceTemp.at(*it);
+			  //  if (includes(g->begin(), g->end(), gg->begin(), gg->end())) {
+			  //    was_broken = true;
+			  //    break;
+			  //  }
+			  //}
+			}*/
+
+
+			for (size_t k = 0; k != faceTemp.size(); ++k) {
+				if (k == j) continue;
+				//this is not enough, same candidate can be generated several times from several face combinations !
+				set<uint32_t>* gg = &faceTemp.at(k);
+				if (gg->size() >= g->size()) continue;
+				//if (!(g->size() > gg->size())) continue;
+				if (includes(g->begin(), g->end(), gg->begin(), gg->end())) {
+					/*print_concept_as_set(g);
+					std::cout << " includes ";
+					print_concept_as_set(gg);
+					std::cout << std::endl;*/
+					was_broken = true;
+					break;
+				}
+			}
+			if (!was_broken) {
+				_faces->push_back(*g);
+			}
+		}
+		faceTemp.clear();
+	}
+	// here we have candidate generators
+	vector<set<uint32_t>> realFaces;
+	for (size_t k = 0; k != _faces->size(); ++k) {
+		set<uint32_t>* g = &_faces->at(k);
+		bool was_broken = false;
+		for (size_t j = 0; j != realFaces.size(); ++j) {
+			set<uint32_t>* gg = &realFaces.at(j);
+			if (includes(g->begin(), g->end(), gg->begin(), gg->end())) {
+				was_broken = true;
+				break;
+			}
+		}
+		if (!was_broken)
+			realFaces.push_back(*g);
+	}
+
+	//copy
+	_faces->clear();
+	for (size_t j = 0; j != realFaces.size(); ++j) {
+		set<uint32_t>* gg = &realFaces.at(j);
+		_faces->push_back(*gg);
+	}
+
+	//final checks
+	for (size_t k = 0; k != _faces->size(); ++k) {
+		set<uint32_t>* g = &_faces->at(k);
+		for (size_t j = 0; j != _faces->size(); ++j) {
+			if (k == j) continue;
+			set<uint32_t>* gg = &_faces->at(j);
+			if (includes(g->begin(), g->end(), gg->begin(), gg->end())) {
+				exit(1);
+			}
+		}
+	}
+	//std::cout << _faces->size() << " from " << _generators.size() << std::endl;
+
+	std::set<std::set<uint32_t>*> preds;
+	for (std::vector<std::set<uint32_t>>::iterator face = _faces->begin(); face != _faces->end(); ++face) {
+		std::set<uint32_t>* pred = new std::set<uint32_t>;
+		std::set_difference(clos->itemset.begin(), clos->itemset.end(), face->begin(), face->end(),
+			std::inserter(*pred, pred->end()));
+		preds.insert(pred);
+	}
+
+
+	return preds;
+
+	/*std::cout << "faces : " << std::endl;
+	for (size_t i = 0; i != _generators.size(); ++i) {
+	  std::vector<uint32_t>* f = &_generators[i];
+	  print_concept_as_vector(f);
+	  std::cout << std::endl;
+	}*/
+}
+
 
 
 

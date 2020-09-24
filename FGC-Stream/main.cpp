@@ -5,7 +5,7 @@
 #include <chrono>
 
 uint32_t NODE_ID = 0;
-uint32_t minSupp = 1;
+uint32_t minSupp = 3;
 uint32_t totalGens = 0;
 const uint32_t windowSize = 100;
 
