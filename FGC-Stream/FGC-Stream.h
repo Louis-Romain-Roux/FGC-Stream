@@ -28,6 +28,14 @@ std::pair<bool, ClosedIS*> computeClosure(GenNode* gen, std::set<uint32_t> t_n, 
 std::set<std::set<uint32_t>*> computePreds(ClosedIS* clos);
 std::set<std::set<uint32_t>*> compute_preds_efficient(ClosedIS* clos);
 
+void descendM(GenNode* n, std::set<uint32_t> t_0, std::multimap<uint32_t, ClosedIS*>* ClosureList, std::vector<ClosedIS*>* iJumpers, std::vector<ClosedIS*>* fObsoletes);
+ClosedIS* findGenitor(ClosedIS* clos, std::set<uint32_t> t_0);
+void dropObsolete(ClosedIS* clos, std::multimap<uint32_t, ClosedIS*>* ClosureList, GenNode* root);
+void dropObsoleteGs(GenNode* root, ClosedIS* clos);
+void dropJumper(ClosedIS* clos, std::multimap<uint32_t, ClosedIS*>* ClosureList);
+
+
+
 void resetStatus(GenNode*);
 void closureReset(std::multimap<uint32_t, ClosedIS*>* ClosureList);
 ClosedIS* findCI(std::set<uint32_t> itemSet, std::multimap<uint32_t, ClosedIS*>* ClosureList);
@@ -64,9 +72,11 @@ struct ClosedIS {
 	uint32_t support;
 	bool visited;
 	ClosedIS* newCI;
+	ClosedIS* gtr;
 	std::set < std::set<uint32_t>* > candidates;
 	std::multimap<uint32_t, ClosedIS*> succ;
 	std::multimap<uint32_t, ClosedIS*> preds;
+
 
 
 	ClosedIS(std::set<uint32_t> itemset, uint32_t support, std::multimap<uint32_t, ClosedIS*>* ClosureList);

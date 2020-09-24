@@ -5,11 +5,11 @@
 #include <chrono>
 
 uint32_t NODE_ID = 0;
-uint32_t minSupp = 3;
+uint32_t minSupp = 1;
 uint32_t totalGens = 0;
-const uint32_t windowSize = 100;
+const uint32_t windowSize = 10;
 
-//std::set<uint32_t>* TListByID[windowSize];
+std::set<uint32_t>* TListByID[windowSize];
 
 int testedJp = 0;
 float sumJp = 0;
@@ -48,6 +48,25 @@ void Addition(std::set<uint32_t> t_n, int n, GenNode* root, TIDList* TList, std:
     closureReset(ClosureList); // This is needed to set all visited flags back to false and clear the candidate list
 }
 
+
+void Deletion(std::set<uint32_t> t_0, int n, GenNode* root, TIDList* TList, std::multimap<uint32_t, ClosedIS*>* ClosureList) {
+    std::vector<ClosedIS*>* iJumpers = new std::vector<ClosedIS*>;
+    std::vector<ClosedIS*>* fObsoletes = new std::vector<ClosedIS*>;
+
+    descendM(root, t_0, ClosureList, iJumpers, fObsoletes);
+
+    for (std::vector<ClosedIS*>::iterator jprIt = iJumpers->begin(); jprIt != iJumpers->end(); ++jprIt) {
+        ClosedIS* jumper = *jprIt;
+        dropJumper(jumper, ClosureList);
+    }
+
+    for (std::vector<ClosedIS*>::iterator obsIt = fObsoletes->begin(); obsIt != fObsoletes->end(); ++obsIt) {
+        ClosedIS* obsolete = *obsIt;
+        dropObsolete(obsolete, ClosureList, root);
+    }
+
+    closureReset(ClosureList);
+}
 
 
 
@@ -113,12 +132,12 @@ void printClosureOrder(std::multimap<uint32_t, ClosedIS*> ClosureList) {
 int main()
 {
 
-    //for (int k = 0; k < windowSize; k++) {
-    //    TListByID[k] = new std::set<uint32_t>;
-    //}
+    for (int k = 0; k < windowSize; k++) {
+       TListByID[k] = new std::set<uint32_t>;
+    }
 
     auto start = std::chrono::high_resolution_clock::now();
-    std::ifstream input("Datasets/retail.txt");
+    std::ifstream input("Datasets/in.txt");
     char s[10000];
     uint32_t i = 0;
 
@@ -133,7 +152,7 @@ int main()
     Transaction<uint32_t> new_transaction = Transaction<uint32_t>(pch, " ", 0);
     i++;
     std::vector<uint32_t> closSetvec = *new_transaction.data();
-    //TListByID[i % windowSize]->insert(closSetvec.begin(), closSetvec.end());
+    TListByID[i % windowSize]->insert(closSetvec.begin(), closSetvec.end());
     
     closSet.insert(closSetvec.begin(), closSetvec.end());
     TList->add(closSet, i);
@@ -144,7 +163,7 @@ int main()
         Transaction<uint32_t> new_transaction = Transaction<uint32_t>(pch, " ", 0);
         i++;
         std::vector<uint32_t> closSetvec = *new_transaction.data();
-        //TListByID[i % windowSize]->insert(closSetvec.begin(), closSetvec.end());
+        TListByID[i % windowSize]->insert(closSetvec.begin(), closSetvec.end());
 
         std::set<uint32_t> closSetPart(closSetvec.begin(), closSetvec.end());
         TList->add(closSetPart, i);
@@ -179,6 +198,10 @@ int main()
         i++;
         char* pch = strtok(s, " ");
 
+        if (i == 118) {
+            i++; i--;
+        }
+
 
         Transaction<uint32_t> new_transaction = Transaction<uint32_t>(pch, " ", 0);
         std::vector<uint32_t> t_nVec = *new_transaction.data();
@@ -188,15 +211,15 @@ int main()
 
         Addition(t_n, i, root, TList, &ClosureList);
 
-        /*
+        
         if (i > windowSize) {
             Deletion(*TListByID[i%windowSize], i-windowSize, root, TList, &ClosureList);
         }
         TListByID[i % windowSize]->clear();
         TListByID[i % windowSize]->insert(t_n.begin(), t_n.end());
-        */
+        
 
-        if (i % 10 == 0) {
+        if (i % 1 == 0) {
             std::cout << i << " transactions processed" << std::endl;
         }
         if (i % 50 == 0) {
