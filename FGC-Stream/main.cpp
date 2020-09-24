@@ -24,12 +24,14 @@ void Addition(std::set<uint32_t> t_n, int n, GenNode* root, TIDList* TList, std:
     descend(root, emptySet, t_n, &fGenitors, ClosureList);
 
     filterCandidates(&fGenitors, root, ClosureList);
-    std::vector<ClosedIS*> newClosures;
+    std::vector<ClosedIS*>* newClosures = new std::vector<ClosedIS*>;
     
     computeJumpers(root, t_n, newClosures, TList, root, ClosureList);
 
-    for (std::vector<ClosedIS*>::iterator jClos = newClosures.begin(); jClos != newClosures.end(); ++jClos) {
-        std::set<std::set<uint32_t>*> preds = computePreds(*jClos);
+    for (std::vector<ClosedIS*>::iterator jClos = newClosures->begin(); jClos != newClosures->end(); ++jClos) {
+        std::set<std::set<uint32_t>*> preds = compute_preds_efficient(*jClos);
+        //std::set<std::set<uint32_t>*> preds = computePreds(*jClos);
+
         uint32_t key = CISSum((*jClos)->itemset);
 
         for (std::set<std::set<uint32_t>*>::iterator pred = preds.begin(); pred != preds.end(); ++pred) {

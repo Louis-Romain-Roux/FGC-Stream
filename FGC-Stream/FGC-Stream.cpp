@@ -80,6 +80,7 @@ void filterCandidates(std::multimap < uint32_t, ClosedIS* >* fGenitors, GenNode*
 
 		//std::set<std::set<uint32_t>*> preds = computePreds(genitor->newCI);
 		std::set<std::set<uint32_t>*> preds = compute_preds_efficient(genitor->newCI);
+
 		uint32_t key = CISSum(genitor->newCI->itemset);
 		uint32_t oldKey = CISSum(genitor->itemset);
 
@@ -114,7 +115,7 @@ void filterCandidates(std::multimap < uint32_t, ClosedIS* >* fGenitors, GenNode*
 	}
 }
 
-void computeJumpers(GenNode* n, std::set<uint32_t> t_n, std::vector<ClosedIS*> newClosures, TIDList* TList, GenNode* root, std::multimap<uint32_t, ClosedIS*>* ClosureList) {
+void computeJumpers(GenNode* n, std::set<uint32_t> t_n, std::vector<ClosedIS*>* newClosures, TIDList* TList, GenNode* root, std::multimap<uint32_t, ClosedIS*>* ClosureList) {
 
 	for (std::map<uint32_t, GenNode*>::const_iterator child = n->succ->begin(); child != n->succ->end(); child++) {
 		computeJumpers(child->second, t_n, newClosures, TList, root, ClosureList);
@@ -188,7 +189,7 @@ void computeJumpers(GenNode* n, std::set<uint32_t> t_n, std::vector<ClosedIS*> n
 								GenNode* newGen = new GenNode(rightN->item, leftN, nullptr);
 								std::pair<bool, ClosedIS*> result = computeClosure(newGen, t_n, newClosures, root, TList, ClosureList);
 								if (!result.first) {
-									newClosures.push_back(result.second);
+									newClosures->push_back(result.second);
 								}
 								ClosedIS* clos = result.second;
 								clos->gens.insert(newGen);
@@ -211,7 +212,7 @@ void computeJumpers(GenNode* n, std::set<uint32_t> t_n, std::vector<ClosedIS*> n
 						GenNode* newGen = new GenNode(*item, root, nullptr);
 						std::pair<bool, ClosedIS*> result = computeClosure(newGen, t_n, newClosures, root, TList, ClosureList);
 						if (!result.first) {
-							newClosures.push_back(result.second);
+							newClosures->push_back(result.second);
 						}
 						ClosedIS* clos = result.second;
 						clos->gens.insert(newGen);
@@ -223,10 +224,11 @@ void computeJumpers(GenNode* n, std::set<uint32_t> t_n, std::vector<ClosedIS*> n
 	}
 }
 
-std::pair<bool,ClosedIS*> computeClosure(GenNode* gen, std::set<uint32_t> t_n, std::vector<ClosedIS*> newClosures, GenNode* root, TIDList *TList, std::multimap<uint32_t, ClosedIS*>* ClosureList) {
+std::pair<bool,ClosedIS*> computeClosure(GenNode* gen, std::set<uint32_t> t_n, std::vector<ClosedIS*>* newClosures, GenNode* root, TIDList *TList, std::multimap<uint32_t, ClosedIS*>* ClosureList) {
 	std::set<uint32_t> iset = gen->items();
-	for (auto clos : newClosures) {
-		if (std::includes(iset.begin(), iset.end(), clos->itemset.begin(), clos->itemset.end())) {
+	for (std::vector<ClosedIS*>::iterator closIt = newClosures->begin(); closIt != newClosures->end(); ++closIt) {
+		ClosedIS* clos = *closIt;
+		if (std::includes(clos->itemset.begin(), clos->itemset.end(), iset.begin(), iset.end())) {
 			return std::make_pair(true, clos);
 		}
 	}
