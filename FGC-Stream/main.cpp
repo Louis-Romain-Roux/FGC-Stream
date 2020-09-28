@@ -7,7 +7,7 @@
 uint32_t NODE_ID = 0;
 uint32_t minSupp = 1;
 uint32_t totalGens = 0;
-const uint32_t windowSize = 10;
+const uint32_t windowSize = 5;
 
 std::set<uint32_t>* TListByID[windowSize];
 
@@ -29,7 +29,7 @@ void Addition(std::set<uint32_t> t_n, int n, GenNode* root, TIDList* TList, std:
     computeJumpers(root, t_n, newClosures, TList, root, ClosureList);
 
     for (std::vector<ClosedIS*>::iterator jClos = newClosures->begin(); jClos != newClosures->end(); ++jClos) {
-        std::set<std::set<uint32_t>*> preds = compute_preds_efficient(*jClos);
+        std::set<std::set<uint32_t>*> preds = compute_preds_exp(*jClos);
         //std::set<std::set<uint32_t>*> preds = computePreds(*jClos);
 
         uint32_t key = CISSum((*jClos)->itemset);
@@ -51,7 +51,7 @@ void Addition(std::set<uint32_t> t_n, int n, GenNode* root, TIDList* TList, std:
 
 void Deletion(std::set<uint32_t> t_0, int n, GenNode* root, TIDList* TList, std::multimap<uint32_t, ClosedIS*>* ClosureList) {
     std::vector<ClosedIS*>* iJumpers = new std::vector<ClosedIS*>;
-    std::vector<ClosedIS*>* fObsoletes = new std::vector<ClosedIS*>;
+    std::multimap<uint32_t, ClosedIS*>* fObsoletes = new std::multimap<uint32_t, ClosedIS*>;
 
     descendM(root, t_0, ClosureList, iJumpers, fObsoletes);
 
@@ -60,8 +60,8 @@ void Deletion(std::set<uint32_t> t_0, int n, GenNode* root, TIDList* TList, std:
         dropJumper(jumper, ClosureList);
     }
 
-    for (std::vector<ClosedIS*>::iterator obsIt = fObsoletes->begin(); obsIt != fObsoletes->end(); ++obsIt) {
-        ClosedIS* obsolete = *obsIt;
+    for (std::multimap<uint32_t, ClosedIS*>::reverse_iterator obsIt = fObsoletes->rbegin(); obsIt != fObsoletes->rend(); ++obsIt) {
+        ClosedIS* obsolete = obsIt->second;
         dropObsolete(obsolete, ClosureList, root);
     }
 
@@ -198,7 +198,7 @@ int main()
         i++;
         char* pch = strtok(s, " ");
 
-        if (i == 118) {
+        if (i == 10) {
             i++; i--;
         }
 

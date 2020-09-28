@@ -8,9 +8,12 @@
 #include <numeric>
 
 
+using namespace std;
+
 struct ClosedIS;
 struct GenNode;
 struct TIDList;
+struct MinNode;
 
 extern uint32_t NODE_ID;
 extern uint32_t minSupp;
@@ -28,7 +31,14 @@ std::pair<bool, ClosedIS*> computeClosure(GenNode* gen, std::set<uint32_t> t_n, 
 std::set<std::set<uint32_t>*> computePreds(ClosedIS* clos);
 std::set<std::set<uint32_t>*> compute_preds_efficient(ClosedIS* clos);
 
-void descendM(GenNode* n, std::set<uint32_t> t_0, std::multimap<uint32_t, ClosedIS*>* ClosureList, std::vector<ClosedIS*>* iJumpers, std::vector<ClosedIS*>* fObsoletes);
+std::set<std::set<uint32_t>*> compute_preds_exp(ClosedIS* clos);
+void grow_generator(vector<set<uint32_t>>* _generators,
+	vector<vector<uint32_t>>* _faces, MinNode* const _parent_node, MinNode* const _root, vector<MinNode*>* const _nodes);
+bool is_valid_candidate(MinNode* const _parent_node, const uint32_t _item, vector<size_t>* const _fid_out, MinNode* const _root);
+MinNode* get_from_path(vector<uint32_t>* const _path, MinNode* const _root);
+
+
+void descendM(GenNode* n, std::set<uint32_t> t_0, std::multimap<uint32_t, ClosedIS*>* ClosureList, std::vector<ClosedIS*>* iJumpers, std::multimap<uint32_t, ClosedIS*>* fObsoletes);
 ClosedIS* findGenitor(ClosedIS* clos, std::set<uint32_t> t_0);
 void dropObsolete(ClosedIS* clos, std::multimap<uint32_t, ClosedIS*>* ClosureList, GenNode* root);
 void dropObsoleteGs(GenNode* root, ClosedIS* clos);
@@ -94,3 +104,13 @@ struct TIDList {
 	std::set<uint32_t> getISTL(std::set<uint32_t> itemset);
 	int singleInterSupp(uint32_t item, std::set<uint32_t> currTIDList);
 };
+
+struct MinNode {
+	MinNode* parent;
+	vector<size_t>* fidset;
+	uint32_t item;
+	set<uint32_t>* generator;
+	map<uint32_t, MinNode*>* children;
+
+};
+

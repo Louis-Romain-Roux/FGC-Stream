@@ -79,7 +79,7 @@ void filterCandidates(std::multimap < uint32_t, ClosedIS* >* fGenitors, GenNode*
 		}
 
 		//std::set<std::set<uint32_t>*> preds = computePreds(genitor->newCI);
-		std::set<std::set<uint32_t>*> preds = compute_preds_efficient(genitor->newCI);
+		std::set<std::set<uint32_t>*> preds = compute_preds_exp(genitor->newCI);
 
 		uint32_t key = CISSum(genitor->newCI->itemset);
 		uint32_t oldKey = CISSum(genitor->itemset);
@@ -319,6 +319,255 @@ std::set<std::set<uint32_t>*> computePreds(ClosedIS* clos) {
 
 using namespace std;
 
+std::set<std::set<uint32_t>*> compute_preds_exp(ClosedIS* clos) {
+
+	vector<vector<uint32_t>>* _generators = new vector<vector<uint32_t>>;
+	//Fill with generators
+	for (set<GenNode*>::iterator genIt = clos->gens.begin(); genIt != clos->gens.end(); ++genIt) {
+		set<uint32_t> itemsS = (*genIt)->items();
+		vector<uint32_t> itemsV(itemsS.begin(), itemsS.end());
+		_generators->push_back(itemsV);
+	}
+
+	vector<set<uint32_t>>* _faces = new vector<set<uint32_t>>;
+
+
+	std::map<uint32_t, vector<size_t>>* reversed_gens = new std::map<uint32_t, vector<size_t>>();
+	for (size_t i = 0; i != _generators->size(); ++i) {
+		vector<uint32_t>* const f = &_generators->at(i);
+		for (size_t j = 0; j != f->size(); ++j) {
+			//if never found item
+			if (reversed_gens->find(f->at(j)) == reversed_gens->end()) {
+				reversed_gens->emplace(std::make_pair(f->at(j), vector<size_t>()));
+			}
+			reversed_gens->at(f->at(j)).push_back(i);
+		}
+	}
+	std::vector<uint32_t> item_candidates;
+	{
+		std::map<uint32_t, vector<size_t>>::iterator it = reversed_gens->begin();
+		for (; it != reversed_gens->end(); ++it) {
+			if (it->second.size() == _generators->size()) {
+				//il est un generateur singleton
+				std::set<uint32_t> new_gen = std::set<uint32_t>();
+				new_gen.insert(it->first);
+				_faces->push_back(new_gen);
+			}
+			else {
+				//dans le cas contraire, il faut le mettre de cote
+				item_candidates.push_back(it->first);
+			}
+		}
+	}
+
+
+
+
+	vector<MinNode*> all_nodes = vector<MinNode*>();
+	MinNode* const ROOT = new MinNode();
+	ROOT->children = new std::map<uint32_t, MinNode*>();
+	all_nodes.push_back(ROOT);
+	for (size_t j = item_candidates.size(); j != 0; --j) {
+		const uint32_t item = item_candidates.at(j - 1);
+		vector<size_t>* ref = &(reversed_gens->at(item));
+		vector<size_t>* fid_left = new vector<size_t>(ref->begin(), ref->end());
+		std::set<uint32_t>* new_gen = new std::set<uint32_t>();
+		new_gen->insert(item);
+		MinNode* atom = new MinNode();
+		{
+			ROOT->children->emplace(std::pair<uint32_t, MinNode*>(item, atom));
+			atom->parent = ROOT;
+			atom->fidset = fid_left;
+			atom->item = item;
+			atom->generator = new_gen;
+		}
+		all_nodes.push_back(atom);
+		grow_generator(_faces, _generators, atom, ROOT, &all_nodes);
+		//delete fid_left;
+	}
+	vector<MinNode*>::iterator it = all_nodes.begin();
+	for (; it != all_nodes.end(); ++it) {
+		MinNode* const node = *it;
+		if (node->children) delete node->children;
+		delete node->fidset;
+		delete node->generator;
+		delete node;
+	}
+	//perform_minimality_test(_faces);
+
+	delete reversed_gens;
+	//std::cout << _faces->size() << " from " << _generators->size() << std::endl;
+	std::set<std::set<uint32_t>*> preds;
+	for (vector<set<uint32_t>>::iterator face = _faces->begin(); face != _faces->end(); ++face) {
+		std::set<uint32_t>* pred = new std::set<uint32_t>;
+		std::set_difference(clos->itemset.begin(), clos->itemset.end(), face->begin(), face->end(),
+			std::inserter(*pred, pred->end()));
+		preds.insert(pred);
+	}
+
+	return preds;
+
+}
+
+void grow_generator(vector<set<uint32_t>>* _generators,
+	vector<vector<uint32_t>>* _faces, MinNode* const _parent_node, MinNode* const _root, vector<MinNode*>* const _nodes) {
+	std::map<uint32_t, MinNode*>* const _parent_siblings = _parent_node->parent->children;
+	std::map<uint32_t, MinNode*>::reverse_iterator it_par_sib = _parent_siblings->rbegin();
+	for (; it_par_sib != _parent_siblings->rend(); ++it_par_sib) {
+		MinNode* const ref_sib = it_par_sib->second;
+		const uint32_t item = ref_sib->item;
+
+		if (item <= _parent_node->item) continue;
+		/*std::cout << "Combining ";
+		print_concept_as_set(_parent_node->generator);
+		std::cout << "with ";
+		print_concept_as_set(ref_sib->generator);
+		std::cout << " (" << item << ") " << std::endl;*/
+		//print_concept_as_set(_parent_node->generator);
+		//std::cout << std::endl;
+		vector<size_t>* const fid_in = _parent_node->fidset;
+		vector<size_t>* const fid_right = ref_sib->fidset;
+		vector<size_t> actual_set;
+		vector<size_t>* fid_out = &actual_set;// vector<size_t>();
+		fid_out->resize(_faces->size());
+		vector<size_t>::iterator it = set_union(fid_in->begin(), fid_in->end(), fid_right->begin(), fid_right->end(), fid_out->begin());
+		fid_out->resize(it - fid_out->begin());
+		if (fid_out->size() != fid_in->size() && fid_out->size() != fid_right->size() && fid_out->size() == _faces->size()) {
+			if (!is_valid_candidate(_parent_node, item, fid_out, _root)) {
+				//delete fid_out;
+				continue;
+			}
+			//ok fini, il est transveral minimal
+			std::set<uint32_t>* new_gen = new std::set<uint32_t>(_parent_node->generator->begin(), _parent_node->generator->end());
+			new_gen->insert(item);
+			_generators->push_back(*new_gen);//should have pointer refs into generators instead of copies (but should also ensuite contiguous mem)
+			MinNode* const newnode = new MinNode();
+			newnode->fidset = new vector<size_t>(fid_out->begin(), fid_out->end());
+			newnode->generator = new_gen;
+			newnode->parent = _parent_node;
+			newnode->item = item;
+			_nodes->push_back(newnode);
+			if (!_parent_node->children) {
+				_parent_node->children = new std::map<uint32_t, MinNode*>();
+			}
+			_parent_node->children->emplace(std::make_pair(item, newnode));
+		}
+		else {
+			if (fid_out->size() == fid_in->size() || fid_out->size() == fid_right->size()) {
+				//on a rien gagne donc il est pas utile de rajouter cet item au candidat generateur actuel, on elague tous ses supersets
+				//delete fid_out;
+				continue;
+			}
+			//ici check les subsets du generateur candidat pour s'assurer qu'il y en a pas deja un avec le meme fid-set
+			//enumerer les subsets
+			if (is_valid_candidate(_parent_node, item, fid_out, _root)) {
+				//ok on le garde, il est un candidat valide (qui va devoir encore grandir)
+				MinNode* const newnode = new MinNode();
+				newnode->fidset = new vector<size_t>(fid_out->begin(), fid_out->end());
+				std::set<uint32_t>* new_gen = new std::set<uint32_t>(_parent_node->generator->begin(), _parent_node->generator->end());
+				new_gen->insert(item);
+				newnode->generator = new_gen;
+				newnode->parent = _parent_node;
+				newnode->item = item;
+				if (!_parent_node->children) {
+					_parent_node->children = new std::map<uint32_t, MinNode*>();
+				}
+				_nodes->push_back(newnode);
+				_parent_node->children->emplace(std::make_pair(item, newnode));
+				grow_generator(_generators, _faces, newnode, _root, _nodes);
+			}
+			else {
+				//delete fid_out;
+				//std::cout << "pruned candidated because not minimal" << std::endl;
+			}
+		}
+	}
+}
+
+bool is_valid_candidate(MinNode* const _parent_node, const uint32_t _item, vector<size_t>* const _fid_out, MinNode* const _root) {
+	bool is_valid_candidate = true;
+	vector<vector<uint32_t>> all_direct_subsets = vector<vector<uint32_t>>();
+
+	//comment enumerer les subsets ?
+	vector<uint32_t> copy_as_vect = vector<uint32_t>(_parent_node->generator->begin(), _parent_node->generator->end());
+
+	/*std::cout << "subset of ";
+	print_concept_as_vector(&copy_as_vect);
+	std::cout << " + " << _item;
+	std::cout << endl;
+	*/
+	//recall that all shifted by +1 in order to keep cur1sor positive
+	for (uint32_t i = _parent_node->generator->size() - 1; i != 0; --i) {
+		vector<uint32_t> candidate_immediate_subset = vector<uint32_t>();
+		for (uint32_t j = 0; j != _parent_node->generator->size() + 1; ++j) {
+			if (j != (i - 1)) {
+				if (j == _parent_node->generator->size()) {
+					candidate_immediate_subset.push_back(_item);
+				}
+				else candidate_immediate_subset.push_back(copy_as_vect.at(j));
+			}
+		}
+		// print_concept_as_vector(&candidate_immediate_subset);
+		// std::cout << endl;
+		all_direct_subsets.push_back(candidate_immediate_subset);
+	}
+
+	MinNode* subset;
+	vector<vector<uint32_t>>::iterator it = all_direct_subsets.begin();
+	for (; it != all_direct_subsets.end(); ++it) {
+
+		/*std::cout << " is ";
+		print_concept_as_vector(&*it);
+		std::cout << std::endl;
+		*/
+
+		vector<uint32_t>* vv = &(*it);
+		if (!vv) {
+			//std::cout << "lol" << std::endl;
+			exit(300);
+		}
+		subset = get_from_path(vv, _root);
+		if (subset) {
+			if (subset->fidset->size() == _fid_out->size()) {
+				//non, il est pas minimal
+				//is_valid_candidate = false;
+				return false;
+				//break;
+			}
+		}
+		else {
+			//le sous ensemble n'a pas ete trouve, donc il existe un subset de ce subset avec le meme fid, 
+			//donc il n'est pas canonique, donc on skipe
+			//is_valid_candidate = false;
+			return false;
+			//break;
+		}
+	}
+	return true;
+}
+
+MinNode* get_from_path(vector<uint32_t>* const _path, MinNode* const _root) {
+	MinNode* curr = _root;
+	std::map<uint32_t, MinNode*>::iterator it;// = curr->children->begin();
+	for (size_t i = 0; i != _path->size(); ++i) {
+		uint32_t next = _path->at(i);
+		//std::cout << "searching for " << next << std::endl;
+		if (curr->children && (it = curr->children->find(next)) != curr->children->end() && it->second) {
+			//ok found
+			//std::cout << "ok was found !" << std::endl;
+			curr = it->second;
+		}
+		else {
+			//std::cout << "oh shit not found" << std::endl;
+			return 0x00;
+		}
+	}
+	//std::cout << "found w/ " << curr->fidset->size() << std::endl;
+	return curr;
+}
+
+
+
 set<set<uint32_t>*> compute_preds_efficient(ClosedIS* clos) {
 	vector<vector<uint32_t>> _generators;
 	//Fill with generators
@@ -338,7 +587,7 @@ set<set<uint32_t>*> compute_preds_efficient(ClosedIS* clos) {
 		_faces->push_back(face);
 	}
 
-	/*if (_generators[0].size() == 31 && _generators.size() == 1) {
+	/*if (_faces[0].size() == 31 && _faces.size() == 1) {
 	  std::cout << "lol" << std::endl;
 	}*/
 
@@ -347,7 +596,7 @@ set<set<uint32_t>*> compute_preds_efficient(ClosedIS* clos) {
 	// 2 - loop all gens 
 	for (size_t i = 1; i != _generators.size(); ++i) {
 		if (_generators[i].size() == 0) {
-			std::cout << "" << std::endl;
+			//std::cout << "" << std::endl;
 			exit(1);
 		}
 		//std::map<uint32_t, std::vector<size_t>> test_index_gen;
@@ -372,7 +621,7 @@ set<set<uint32_t>*> compute_preds_efficient(ClosedIS* clos) {
 
 		for (size_t j = 0; j != faceTemp.size(); ++j) {
 			// check min
-			// if min -> _faces
+			// if min -> _generators
 			set<uint32_t>* g = &faceTemp.at(j);
 			bool was_broken = false;
 			//loop and include
@@ -454,7 +703,7 @@ set<set<uint32_t>*> compute_preds_efficient(ClosedIS* clos) {
 			}
 		}
 	}
-	//std::cout << _faces->size() << " from " << _generators.size() << std::endl;
+	//std::cout << _generators->size() << " from " << _faces.size() << std::endl;
 
 	std::set<std::set<uint32_t>*> preds;
 	for (std::vector<std::set<uint32_t>>::iterator face = _faces->begin(); face != _faces->end(); ++face) {
@@ -468,8 +717,8 @@ set<set<uint32_t>*> compute_preds_efficient(ClosedIS* clos) {
 	return preds;
 
 	/*std::cout << "faces : " << std::endl;
-	for (size_t i = 0; i != _generators.size(); ++i) {
-	  std::vector<uint32_t>* f = &_generators[i];
+	for (size_t i = 0; i != _faces.size(); ++i) {
+	  std::vector<uint32_t>* f = &_faces[i];
 	  print_concept_as_vector(f);
 	  std::cout << std::endl;
 	}*/
@@ -478,7 +727,7 @@ set<set<uint32_t>*> compute_preds_efficient(ClosedIS* clos) {
 
 // Deletion routine
 
-void descendM(GenNode* n, std::set<uint32_t> t_0, std::multimap<uint32_t, ClosedIS*>* ClosureList, std::vector<ClosedIS*>* iJumpers, std::vector<ClosedIS*>* fObsoletes) {
+void descendM(GenNode* n, std::set<uint32_t> t_0, std::multimap<uint32_t, ClosedIS*>* ClosureList, std::vector<ClosedIS*>* iJumpers, std::multimap<uint32_t, ClosedIS*>* fObsoletes) {
 	if (n->clos->support == minSupp) {
 		if (!n->clos->visited) {
 			n->clos->visited = true;
@@ -494,7 +743,7 @@ void descendM(GenNode* n, std::set<uint32_t> t_0, std::multimap<uint32_t, Closed
 			}
 			else {
 				n->clos->gtr = cg;
-				fObsoletes->push_back(n->clos);
+				fObsoletes->insert(std::make_pair(n->clos->itemset.size(), n->clos));
 			}
 		}
 	}
@@ -576,14 +825,13 @@ void dropObsoleteGs(GenNode* root, ClosedIS* clos) {
 		if (inter.size() == 1) {
 			items.erase(*(inter.begin()));
 			GenNode* genO = genLookUp(items, root);
-			// The below *might* cause issues. If bugs occur, look here first
-			if (genO != nullptr) {
+			//if (genO != nullptr) {
 				if (genO->clos == clos) {
 					clos->gtr->gens.erase(genO);
 					genO->parent->succ->erase(genO->item);
 					//TODO : replace this with a clean destructor
 				}
-			}
+			//}
 		}
 	}
 
