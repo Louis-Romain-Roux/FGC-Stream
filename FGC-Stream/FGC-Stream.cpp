@@ -3,7 +3,7 @@
 
 
 // ADDITION ROUTINE
-void descend(GenNode* n, std::set<uint32_t> X, std::set<uint32_t> t_n, std::multimap < uint32_t, ClosedIS* >* fGenitors, std::multimap<uint32_t, ClosedIS*>* ClosureList) {
+void descend(GenNode* n, std::set<uint32_t> X, std::set<uint32_t> t_n, std::multimap<uint32_t, ClosedIS*>* fGenitors, std::multimap<uint32_t, ClosedIS*>* ClosureList) {
 	if (n->item != 0) { // 0 is reserved for the root, so n->item = 0 actually means n is the empty set
 		X.insert(n->item);
 	}
@@ -66,6 +66,7 @@ void filterCandidates(std::multimap < uint32_t, ClosedIS* >* fGenitors, GenNode*
 				}
 			}
 			if (!sset) {
+				// InstallGen
 				uint32_t lastItem = *iset->rbegin();
 				iset->erase(std::prev(iset->end()));
 				std::set<uint32_t> copy = *iset;
@@ -84,6 +85,7 @@ void filterCandidates(std::multimap < uint32_t, ClosedIS* >* fGenitors, GenNode*
 		uint32_t key = CISSum(genitor->newCI->itemset);
 		uint32_t oldKey = CISSum(genitor->itemset);
 
+		// Here, we connect new cis with their predecessors/successors
 		for (std::set<std::set<uint32_t>*>::iterator pred = preds.begin(); pred != preds.end(); ++pred) {
 
 			ClosedIS* predNode = findCI(**pred, ClosureList);
@@ -100,18 +102,18 @@ void filterCandidates(std::multimap < uint32_t, ClosedIS* >* fGenitors, GenNode*
 
 		}
 
-		std::multimap<uint32_t, ClosedIS*> newPreds;
 
+		// Collects new genitor's predecessors into newPreds ? 
+		// Detach common preds ?
+		std::multimap<uint32_t, ClosedIS*> newPreds;
 		std::set_difference(std::make_move_iterator(genitor->preds.begin()), std::make_move_iterator(genitor->preds.end()),
 			genitor->newCI->preds.begin(), genitor->newCI->preds.end(),
 			std::inserter(newPreds, newPreds.begin())
 		);
-
 		genitor->preds.swap(newPreds);
+		// Link genitor and newCi
 		genitor->preds.insert(std::make_pair(key, genitor->newCI));
 		genitor->newCI->succ.insert(std::make_pair(oldKey, genitor));
-
-
 	}
 }
 
@@ -322,6 +324,9 @@ using namespace std;
 set<set<uint32_t>*> compute_preds_efficient(ClosedIS* clos) {
 	vector<vector<uint32_t>> _generators;
 	//Fill with generators
+
+	std::cout << "gens " << clos->gens.size() << std::endl;
+
 	for (set<GenNode*>::iterator genIt = clos->gens.begin(); genIt != clos->gens.end(); ++genIt) {
 		set<uint32_t> itemsS = (*genIt)->items();
 		vector<uint32_t> itemsV(itemsS.begin(), itemsS.end());
@@ -331,7 +336,7 @@ set<set<uint32_t>*> compute_preds_efficient(ClosedIS* clos) {
 	vector<set<uint32_t>>* _faces = new vector<set<uint32_t>>;
 	vector<set<uint32_t>> faceTemp;
 
-	// 1 - Create mono-face face
+	// 1 - Create mono-gen face
 	for (size_t i = 0; i != _generators[0].size(); ++i) {
 		set<uint32_t> face = set<uint32_t>();
 		face.insert(_generators[0][i]);
@@ -350,13 +355,15 @@ set<set<uint32_t>*> compute_preds_efficient(ClosedIS* clos) {
 			std::cout << "" << std::endl;
 			exit(1);
 		}
+		std::cout << "i = " << i << std::endl;
+
 		//std::map<uint32_t, std::vector<size_t>> test_index_gen;
 		test_strat_face.clear();
 		// loop on one face
 		for (size_t j = 0; j != _generators[i].size(); ++j) {
-
 			// grow mono-gens
 			for (size_t k = 0; k != _faces->size(); ++k) {
+				//std::cout << "k = " << k << "/" << _faces->size()  << std::endl;
 				set<uint32_t> face = _faces->at(k);
 				face.insert(_generators[i][j]);
 				faceTemp.push_back(face);
@@ -369,6 +376,8 @@ set<set<uint32_t>*> compute_preds_efficient(ClosedIS* clos) {
 
 		// Check minimality
 		_faces->clear();
+
+		std::cout << "facetemp " << faceTemp.size() << std::endl;
 
 		for (size_t j = 0; j != faceTemp.size(); ++j) {
 			// check min
@@ -421,6 +430,7 @@ set<set<uint32_t>*> compute_preds_efficient(ClosedIS* clos) {
 		faceTemp.clear();
 	}
 	// here we have candidate generators
+	std::cout << "minimality tests " << std::endl;
 	vector<set<uint32_t>> realFaces;
 	for (size_t k = 0; k != _faces->size(); ++k) {
 		set<uint32_t>* g = &_faces->at(k);
@@ -443,6 +453,7 @@ set<set<uint32_t>*> compute_preds_efficient(ClosedIS* clos) {
 		_faces->push_back(*gg);
 	}
 
+	std::cout << "final checks" << std::endl;
 	//final checks
 	for (size_t k = 0; k != _faces->size(); ++k) {
 		set<uint32_t>* g = &_faces->at(k);
@@ -454,7 +465,7 @@ set<set<uint32_t>*> compute_preds_efficient(ClosedIS* clos) {
 			}
 		}
 	}
-	//std::cout << _faces->size() << " from " << _generators.size() << std::endl;
+	std::cout << _faces->size() << " from " << _generators.size() << std::endl;
 
 	std::set<std::set<uint32_t>*> preds;
 	for (std::vector<std::set<uint32_t>>::iterator face = _faces->begin(); face != _faces->end(); ++face) {

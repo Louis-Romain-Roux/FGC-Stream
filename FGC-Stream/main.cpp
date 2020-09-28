@@ -7,9 +7,9 @@
 uint32_t NODE_ID = 0;
 uint32_t minSupp = 1;
 uint32_t totalGens = 0;
-const uint32_t windowSize = 10;
+//const uint32_t windowSize = 10;
 
-std::set<uint32_t>* TListByID[windowSize];
+//std::set<uint32_t>* TListByID[windowSize];
 
 int testedJp = 0;
 float sumJp = 0;
@@ -21,29 +21,35 @@ void Addition(std::set<uint32_t> t_n, int n, GenNode* root, TIDList* TList, std:
     std::set<uint32_t> emptySet;
     std::multimap<uint32_t, ClosedIS*> fGenitors;
 
+    std::cout << "descending" << std::endl;
     descend(root, emptySet, t_n, &fGenitors, ClosureList);
 
+    std::cout << "filterCandidates" << std::endl;
     filterCandidates(&fGenitors, root, ClosureList);
     std::vector<ClosedIS*>* newClosures = new std::vector<ClosedIS*>;
     
+    std::cout << "computeJumpers" << std::endl;
     computeJumpers(root, t_n, newClosures, TList, root, ClosureList);
 
+    std::cout << "endloop " << newClosures->size() << std::endl;
     for (std::vector<ClosedIS*>::iterator jClos = newClosures->begin(); jClos != newClosures->end(); ++jClos) {
+        std::cout << "computing preds" << std::endl;
         std::set<std::set<uint32_t>*> preds = compute_preds_efficient(*jClos);
         //std::set<std::set<uint32_t>*> preds = computePreds(*jClos);
 
         uint32_t key = CISSum((*jClos)->itemset);
-
+        std::cout << "|preds|=" << preds.size() << std::endl;
         for (std::set<std::set<uint32_t>*>::iterator pred = preds.begin(); pred != preds.end(); ++pred) {
-
+            // pour chaque predecesseur, on le retrouve via son intent
             ClosedIS* predNode = findCI(**pred, ClosureList);
+            // puis on link dans les deux sens
             predNode->succ.insert(std::make_pair(key, *jClos));
             (*jClos)->preds.insert(std::make_pair(CISSum(**pred), predNode));
 
         }
     
     }
-
+    std::cout << "reseting" << std::endl;
     //std::cout << testedJp << " jumpers tested.\n";
     closureReset(ClosureList); // This is needed to set all visited flags back to false and clear the candidate list
 }
@@ -129,15 +135,22 @@ void printClosureOrder(std::multimap<uint32_t, ClosedIS*> ClosureList) {
     }
 }
 
-int main()
+int main(int argc, char** argv)
 {
 
-    for (int k = 0; k < windowSize; k++) {
+    /*for (int k = 0; k < windowSize; k++) {
        TListByID[k] = new std::set<uint32_t>;
-    }
+    }*/
 
     auto start = std::chrono::high_resolution_clock::now();
-    std::ifstream input("Datasets/in.txt");
+
+    uint32_t exitAt = 0;
+    if (argc < 2) return 1;
+    minSupp = strtoul(argv[2], 0, 10);//1;
+    if (argc >= 3) {
+      exitAt = strtoul(argv[3], 0, 10);//1;
+    }
+    std::ifstream input(/*"Datasets/in.txt"*/argv[1]);
     char s[10000];
     uint32_t i = 0;
 
@@ -152,7 +165,7 @@ int main()
     Transaction<uint32_t> new_transaction = Transaction<uint32_t>(pch, " ", 0);
     i++;
     std::vector<uint32_t> closSetvec = *new_transaction.data();
-    TListByID[i % windowSize]->insert(closSetvec.begin(), closSetvec.end());
+    //TListByID[i % windowSize]->insert(closSetvec.begin(), closSetvec.end());
     
     closSet.insert(closSetvec.begin(), closSetvec.end());
     TList->add(closSet, i);
@@ -163,7 +176,7 @@ int main()
         Transaction<uint32_t> new_transaction = Transaction<uint32_t>(pch, " ", 0);
         i++;
         std::vector<uint32_t> closSetvec = *new_transaction.data();
-        TListByID[i % windowSize]->insert(closSetvec.begin(), closSetvec.end());
+        //TListByID[i % windowSize]->insert(closSetvec.begin(), closSetvec.end());
 
         std::set<uint32_t> closSetPart(closSetvec.begin(), closSetvec.end());
         TList->add(closSetPart, i);
@@ -212,11 +225,12 @@ int main()
         Addition(t_n, i, root, TList, &ClosureList);
 
         
-        if (i > windowSize) {
+        /*if (i > windowSize) {
             Deletion(*TListByID[i%windowSize], i-windowSize, root, TList, &ClosureList);
-        }
-        TListByID[i % windowSize]->clear();
-        TListByID[i % windowSize]->insert(t_n.begin(), t_n.end());
+        }*/
+
+        //TListByID[i % windowSize]->clear();
+        //TListByID[i % windowSize]->insert(t_n.begin(), t_n.end());
         
 
         if (i % 1 == 0) {
@@ -225,6 +239,9 @@ int main()
         if (i % 50 == 0) {
             auto stop = std::chrono::high_resolution_clock::now();
             std::cout << std::chrono::duration_cast<std::chrono::milliseconds>(stop-start).count() << " milliseconds elapsed between start and current transaction" << std::endl;
+        }
+        if (i == exitAt) {
+          break;
         }
         
     }
