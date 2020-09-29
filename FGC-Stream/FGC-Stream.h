@@ -111,6 +111,5 @@ struct MinNode {
 	uint32_t item;
 	set<uint32_t>* generator;
 	map<uint32_t, MinNode*>* children;
-
 };
 

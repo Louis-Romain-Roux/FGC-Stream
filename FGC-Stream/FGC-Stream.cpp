@@ -100,14 +100,16 @@ void filterCandidates(std::multimap < uint32_t, ClosedIS* >* fGenitors, GenNode*
 
 		}
 
-		std::multimap<uint32_t, ClosedIS*> newPreds;
+		std::multimap<uint32_t, ClosedIS*>* newPreds = new std::multimap<uint32_t, ClosedIS*>;
+
+		//Something buggy below
 
 		std::set_difference(std::make_move_iterator(genitor->preds.begin()), std::make_move_iterator(genitor->preds.end()),
 			genitor->newCI->preds.begin(), genitor->newCI->preds.end(),
-			std::inserter(newPreds, newPreds.begin())
+			std::inserter(*newPreds, newPreds->begin())
 		);
 
-		genitor->preds.swap(newPreds);
+		genitor->preds.swap(*newPreds);
 		genitor->preds.insert(std::make_pair(key, genitor->newCI));
 		genitor->newCI->succ.insert(std::make_pair(oldKey, genitor));
 
@@ -207,8 +209,8 @@ void computeJumpers(GenNode* n, std::set<uint32_t> t_n, std::vector<ClosedIS*>* 
 		for(std::set<uint32_t>::const_iterator item = t_n.begin(); item != t_n.end(); item++){
 			if (n->succ->find(*item) == n->succ->end()) {
 				int support = TList->supp_singleton(*item);
-				if (support == minSupp) {
-					if (root->clos->support > minSupp) {
+				if (support >= minSupp) {
+					if (root->clos->support > support) {
 						GenNode* newGen = new GenNode(*item, root, nullptr);
 						std::pair<bool, ClosedIS*> result = computeClosure(newGen, t_n, newClosures, root, TList, ClosureList);
 						if (!result.first) {

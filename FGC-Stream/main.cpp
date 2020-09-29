@@ -137,7 +137,7 @@ int main()
     }
 
     auto start = std::chrono::high_resolution_clock::now();
-    std::ifstream input("Datasets/in.txt");
+    std::ifstream input("Datasets/test_input.txt");
     char s[10000];
     uint32_t i = 0;
 
@@ -198,7 +198,7 @@ int main()
         i++;
         char* pch = strtok(s, " ");
 
-        if (i == 10) {
+        if (i == 17) {
             i++; i--;
         }
 
