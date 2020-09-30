@@ -7,7 +7,7 @@
 uint32_t NODE_ID = 0;
 uint32_t minSupp = 3;
 uint32_t totalGens = 0;
-const uint32_t windowSize = 33;
+const uint32_t windowSize = 20;
 
 std::set<uint32_t>* TListByID[windowSize];
 
@@ -138,7 +138,7 @@ int main()
     }
 
     auto start = std::chrono::high_resolution_clock::now();
-    std::ifstream input("Datasets/in.txt");
+    std::ifstream input("Datasets/test_input.txt");
     char s[10000];
     uint32_t i = 0;
 
@@ -220,10 +220,10 @@ int main()
         TListByID[i % windowSize]->insert(t_n.begin(), t_n.end());
         
 
-        if (i % 1 == 0) {
+        if (i % 20 == 0) {
             std::cout << i << " transactions processed" << std::endl;
         }
-        if (i % 50 == 0) {
+        if (i % 500 == 0) {
             auto stop = std::chrono::high_resolution_clock::now();
             std::cout << std::chrono::duration_cast<std::chrono::milliseconds>(stop-start).count() << " milliseconds elapsed between start and current transaction" << std::endl;
         }
