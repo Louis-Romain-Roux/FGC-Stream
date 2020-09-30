@@ -3,7 +3,7 @@
 
 
 // ADDITION ROUTINE
-void descend(GenNode* n, std::set<uint32_t> X, std::set<uint32_t> t_n, std::multimap < uint32_t, ClosedIS* >* fGenitors, std::multimap<uint32_t, ClosedIS*>* ClosureList) {
+void descend(GenNode* n, std::set<uint32_t> X, std::set<uint32_t> t_n, std::multimap < uint32_t, ClosedIS* >* fGenitors, std::multimap<uint32_t, ClosedIS*>* ClosureList, std::vector<ClosedIS*>* newClosures) {
 	if (n->item != 0) { // 0 is reserved for the root, so n->item = 0 actually means n is the empty set
 		X.insert(n->item);
 	}
@@ -22,6 +22,9 @@ void descend(GenNode* n, std::set<uint32_t> X, std::set<uint32_t> t_n, std::mult
 			closure = findCI(iset, ClosureList);
 			if (closure == nullptr) {
 				closure = new ClosedIS(iset, n->clos->support + 1, ClosureList);
+				newClosures->push_back(closure);
+				n->clos->preds->insert(std::make_pair(CISSum(closure->itemset), closure));
+				closure->succ->insert(std::make_pair(CISSum(n->clos->itemset), n->clos));
 			}
 			n->clos->newCI = closure;
 			n->clos->visited = true;
@@ -46,7 +49,7 @@ void descend(GenNode* n, std::set<uint32_t> X, std::set<uint32_t> t_n, std::mult
 	if (n->succ != nullptr) {
 		for (auto x : *(n->succ)) {
 			if (t_n.find(x.first) != t_n.end()) {
-				descend(x.second, X, t_n, fGenitors, ClosureList);
+				descend(x.second, X, t_n, fGenitors, ClosureList, newClosures);
 			}
 		}
 	}

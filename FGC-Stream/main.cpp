@@ -5,7 +5,7 @@
 #include <chrono>
 
 uint32_t NODE_ID = 0;
-uint32_t minSupp = 3;
+uint32_t minSupp = 1;
 uint32_t totalGens = 0;
 const uint32_t windowSize = 20;
 
@@ -21,10 +21,13 @@ void Addition(std::set<uint32_t> t_n, int n, GenNode* root, TIDList* TList, std:
     std::set<uint32_t> emptySet;
     std::multimap<uint32_t, ClosedIS*> fGenitors;
 
-    descend(root, emptySet, t_n, &fGenitors, ClosureList);
+    std::vector<ClosedIS*>* newClosures = new std::vector<ClosedIS*>;
+
+    // do we "really" need to keep newClosures here ?
+
+    descend(root, emptySet, t_n, &fGenitors, ClosureList, newClosures);
 
     filterCandidates(&fGenitors, root, ClosureList);
-    std::vector<ClosedIS*>* newClosures = new std::vector<ClosedIS*>;
     
     computeJumpers(root, t_n, newClosures, TList, root, ClosureList);
 
@@ -199,7 +202,7 @@ int main()
         i++;
         char* pch = strtok(s, " ");
 
-        if (i == 93) {
+        if (i == 6) {
             i++; i--;
         }
 
