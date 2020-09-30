@@ -5,9 +5,9 @@
 #include <chrono>
 
 uint32_t NODE_ID = 0;
-uint32_t minSupp = 1;
+uint32_t minSupp = 3;
 uint32_t totalGens = 0;
-const uint32_t windowSize = 5;
+const uint32_t windowSize = 33;
 
 std::set<uint32_t>* TListByID[windowSize];
 
@@ -50,6 +50,7 @@ void Addition(std::set<uint32_t> t_n, int n, GenNode* root, TIDList* TList, std:
 
 
 void Deletion(std::set<uint32_t> t_0, int n, GenNode* root, TIDList* TList, std::multimap<uint32_t, ClosedIS*>* ClosureList) {
+    TList->remove(t_0, n);
     std::vector<ClosedIS*>* iJumpers = new std::vector<ClosedIS*>;
     std::multimap<uint32_t, ClosedIS*>* fObsoletes = new std::multimap<uint32_t, ClosedIS*>;
 
@@ -198,7 +199,7 @@ int main()
         i++;
         char* pch = strtok(s, " ");
 
-        if (i == 9) {
+        if (i == 93) {
             i++; i--;
         }
 

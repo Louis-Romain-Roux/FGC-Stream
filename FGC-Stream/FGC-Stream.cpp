@@ -825,6 +825,7 @@ void dropObsoleteGs(GenNode* root, ClosedIS* clos) {
 	std::set<uint32_t> face;
 	std::set_difference(clos->gtr->itemset.begin(), clos->gtr->itemset.end(), clos->itemset.begin(), clos->itemset.end(), std::inserter(face, face.end()));
 	for (std::set<GenNode*>::iterator genIt = clos->gtr->gens.begin(); genIt != clos->gtr->gens.end();) {
+		bool del = false;
 		GenNode* gen = *genIt;
 		std::set<uint32_t> items = gen->items();
 
@@ -834,7 +835,7 @@ void dropObsoleteGs(GenNode* root, ClosedIS* clos) {
 		if (inter.size() == 1) {
 			items.erase(*(inter.begin()));
 			GenNode* genO = genLookUp(items, root);
-			bool del = false;
+			
 			if (genO != nullptr) {
 				if (genO->clos == clos) {
 					removeChildren(gen);
@@ -843,9 +844,10 @@ void dropObsoleteGs(GenNode* root, ClosedIS* clos) {
 					del = true;
 				}
 			}
-			if (!del) {
-				genIt++;
-			}
+			
+		}
+		if (!del) {
+			genIt++;
 		}
 	}
 
@@ -892,7 +894,6 @@ void innerDelete(GenNode* gen) {
 		innerDelete(childIt->second);
 		childIt = gen->succ->erase(childIt);
 	}
-	gen->parent->succ->erase(gen->item);
 	gen->clos->gens.erase(gen);
 	if(gen->clos->gtr != nullptr){
 		gen->clos->gtr->gens.erase(gen);
