@@ -37,8 +37,8 @@ void Addition(std::set<uint32_t> t_n, int n, GenNode* root, TIDList* TList, std:
         for (std::set<std::set<uint32_t>*>::iterator pred = preds.begin(); pred != preds.end(); ++pred) {
 
             ClosedIS* predNode = findCI(**pred, ClosureList);
-            predNode->succ.insert(std::make_pair(key, *jClos));
-            (*jClos)->preds.insert(std::make_pair(CISSum(**pred), predNode));
+            predNode->succ->insert(std::make_pair(key, *jClos));
+            (*jClos)->preds->insert(std::make_pair(CISSum(**pred), predNode));
 
         }
     
@@ -117,7 +117,7 @@ void printClosureOrder(std::multimap<uint32_t, ClosedIS*> ClosureList) {
             std::cout << item << " ";
         }
         std::cout << "} (" << currCI.support << ") has children : ";
-        for (std::multimap<uint32_t, ClosedIS*>::iterator child = currCI.succ.begin(); child != currCI.succ.end(); ++child) {
+        for (std::multimap<uint32_t, ClosedIS*>::iterator child = currCI.succ->begin(); child != currCI.succ->end(); ++child) {
             ClosedIS currChild = *child->second;
             std::cout << "{";
             for (auto item : currChild.itemset) {
@@ -137,7 +137,7 @@ int main()
     }
 
     auto start = std::chrono::high_resolution_clock::now();
-    std::ifstream input("Datasets/test_input.txt");
+    std::ifstream input("Datasets/in.txt");
     char s[10000];
     uint32_t i = 0;
 
@@ -198,7 +198,7 @@ int main()
         i++;
         char* pch = strtok(s, " ");
 
-        if (i == 17) {
+        if (i == 13) {
             i++; i--;
         }
 
