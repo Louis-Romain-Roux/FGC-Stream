@@ -198,7 +198,7 @@ int main()
         i++;
         char* pch = strtok(s, " ");
 
-        if (i == 13) {
+        if (i == 9) {
             i++; i--;
         }
 

@@ -42,7 +42,7 @@ void descendM(GenNode* n, std::set<uint32_t> t_0, std::multimap<uint32_t, Closed
 ClosedIS* findGenitor(ClosedIS* clos, std::set<uint32_t> t_0);
 void dropObsolete(ClosedIS* clos, std::multimap<uint32_t, ClosedIS*>* ClosureList, GenNode* root);
 void dropObsoleteGs(GenNode* root, ClosedIS* clos);
-void removeNodeAndChildren(GenNode* gen);
+void removeChildren(GenNode* gen);
 void innerDelete(GenNode* gen);
 void dropJumper(ClosedIS* clos, std::multimap<uint32_t, ClosedIS*>* ClosureList);
 

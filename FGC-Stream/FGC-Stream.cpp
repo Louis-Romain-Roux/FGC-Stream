@@ -817,6 +817,7 @@ void dropObsolete(ClosedIS* clos, std::multimap<uint32_t, ClosedIS*>* ClosureLis
 	for (std::set<GenNode*>::iterator genIt = clos->gens.begin(); genIt != clos->gens.end(); ++genIt) {
 		GenNode* gen = *genIt;
 		gen->clos = cg;
+		cg->gens.insert(gen);
 	}
 }
 
@@ -836,7 +837,7 @@ void dropObsoleteGs(GenNode* root, ClosedIS* clos) {
 			bool del = false;
 			if (genO != nullptr) {
 				if (genO->clos == clos) {
-					removeNodeAndChildren(gen);
+					removeChildren(gen);
 					gen->parent->succ->erase(gen->item);
 					genIt = gen->clos->gens.erase(genIt);
 					del = true;
@@ -879,7 +880,7 @@ void dropJumper(ClosedIS* clos, std::multimap<uint32_t, ClosedIS*>* ClosureList)
 	}
 }
 
-void removeNodeAndChildren(GenNode* gen) {
+void removeChildren(GenNode* gen) {
 	for (std::map<uint32_t, GenNode*>::iterator childIt = gen->succ->begin(); childIt != gen->succ->end();) {
 		innerDelete(childIt->second);
 		childIt = gen->succ->erase(childIt);
@@ -892,10 +893,8 @@ void innerDelete(GenNode* gen) {
 		childIt = gen->succ->erase(childIt);
 	}
 	gen->parent->succ->erase(gen->item);
-	if (gen->clos->gtr == nullptr) {
-		gen->clos->gens.erase(gen);
-	}
-	else {
+	gen->clos->gens.erase(gen);
+	if(gen->clos->gtr != nullptr){
 		gen->clos->gtr->gens.erase(gen);
 	}
 }
