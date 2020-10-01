@@ -4,7 +4,7 @@
 
 // ADDITION ROUTINE
 void descend(GenNode* n, std::set<uint32_t> X, std::set<uint32_t> t_n, std::multimap < uint32_t, ClosedIS* >* fGenitors, std::multimap<uint32_t, ClosedIS*>* ClosureList, std::vector<ClosedIS*>* newClosures) {
-	if (n->item != 0) { // 0 is reserved for the root, so n->item = 0 actually means n is the empty set
+	if (n->item != -1) { // 0 is reserved for the root, so n->item = 0 actually means n is the empty set
 		X.insert(n->item);
 	}
 
@@ -214,7 +214,7 @@ void computeJumpers(GenNode* n, std::set<uint32_t> t_n, std::vector<ClosedIS*>* 
 		}
 	}
 	
-	if (n->item == 0) {
+	if (n->item == -1) {
 		for(std::set<uint32_t>::const_iterator item = t_n.begin(); item != t_n.end(); item++){
 			if (n->succ->find(*item) == n->succ->end()) {
 				int support = TList->supp_singleton(*item);

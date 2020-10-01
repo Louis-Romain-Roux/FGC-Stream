@@ -22,15 +22,36 @@ void Addition(std::set<uint32_t> t_n, int n, GenNode* root, TIDList* TList, std:
     std::multimap<uint32_t, ClosedIS*> fGenitors;
 
     std::vector<ClosedIS*>* newClosures = new std::vector<ClosedIS*>;
+    std::vector<ClosedIS*>* newClosuresD = new std::vector<ClosedIS*>;
 
     // do we really need to keep newClosures here ?
 
-    descend(root, emptySet, t_n, &fGenitors, ClosureList, newClosures);
+    descend(root, emptySet, t_n, &fGenitors, ClosureList, newClosuresD);
 
     filterCandidates(&fGenitors, root, ClosureList);
     
     computeJumpers(root, t_n, newClosures, TList, root, ClosureList);
 
+
+    /*
+    // new closures
+    for (std::vector<ClosedIS*>::iterator jClos = newClosuresD->begin(); jClos != newClosuresD->end(); ++jClos) {
+        std::set<std::set<uint32_t>*> preds = compute_preds_exp(*jClos);
+        //std::set<std::set<uint32_t>*> preds = computePreds(*jClos);
+
+        uint32_t key = CISSum((*jClos)->itemset);
+
+        for (std::set<std::set<uint32_t>*>::iterator pred = preds.begin(); pred != preds.end(); ++pred) {
+
+            ClosedIS* predNode = findCI(**pred, ClosureList);
+            predNode->succ->insert(std::make_pair(key, *jClos));
+            (*jClos)->preds->insert(std::make_pair(CISSum(**pred), predNode));
+
+        }
+    }
+    */
+
+    // jumping closures
     for (std::vector<ClosedIS*>::iterator jClos = newClosures->begin(); jClos != newClosures->end(); ++jClos) {
         std::set<std::set<uint32_t>*> preds = compute_preds_exp(*jClos);
         //std::set<std::set<uint32_t>*> preds = computePreds(*jClos);
@@ -44,8 +65,9 @@ void Addition(std::set<uint32_t> t_n, int n, GenNode* root, TIDList* TList, std:
             (*jClos)->preds->insert(std::make_pair(CISSum(**pred), predNode));
 
         }
-    
+
     }
+
 
     //std::cout << testedJp << " jumpers tested.\n";
     closureReset(ClosureList); // This is needed to set all visited flags back to false and clear the candidate list
@@ -193,7 +215,7 @@ int main()
 
 
     ClosedIS EmptyClos(closSet, minSupp, &ClosureList); 
-    GenNode* root = new GenNode(0, nullptr, &EmptyClos);
+    GenNode* root = new GenNode(-1, nullptr, &EmptyClos);
 
     
 
