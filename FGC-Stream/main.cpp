@@ -5,8 +5,9 @@
 #include <chrono>
 
 uint32_t NODE_ID = 0;
-uint32_t minSupp = 1;
+uint32_t minSupp = 3;
 uint32_t totalGens = 0;
+
 const uint32_t windowSize = 0;
 
 //std::set<uint32_t>* TListByID[windowSize];
@@ -23,7 +24,6 @@ void Addition(std::set<uint32_t> t_n, int n, GenNode* root, TIDList* TList, std:
 
     std::vector<ClosedIS*>* newClosures = new std::vector<ClosedIS*>;
 
-    // do we "really" need to keep newClosures here ?
     descend(root, emptySet, t_n, &fGenitors, ClosureList, newClosures);
 
     std::cout << "filterCandidates" << std::endl;
@@ -272,6 +272,7 @@ int main(int argc, char** argv)
   TList->add(closSet, i);
 
   while (i < minSupp) {
+
     input.getline(s, 10000);
     char* pch = strtok(s, " ");
     Transaction<uint32_t> new_transaction = Transaction<uint32_t>(pch, " ", 0);
@@ -307,10 +308,6 @@ int main(int argc, char** argv)
   while (input.getline(s, 10000)) {
     i++;
     char* pch = strtok(s, " ");
-
-    if (i == 10) {
-      i++; i--;
-    }
 
 
     Transaction<uint32_t> new_transaction = Transaction<uint32_t>(pch, " ", 0);
