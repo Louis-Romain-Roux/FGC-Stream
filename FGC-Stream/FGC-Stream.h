@@ -22,7 +22,7 @@ extern float actgen;
 
 //#define USE_INT_BITSETS
 
-void descend(GenNode* n, std::set<uint32_t> X, std::set<uint32_t> t_n, std::multimap < uint32_t, ClosedIS* >* fGenitors, std::multimap<uint32_t, ClosedIS*>* ClosureList);
+void descend(GenNode* n, std::set<uint32_t> X, std::set<uint32_t> t_n, std::multimap < uint32_t, ClosedIS* >* fGenitors, std::multimap<uint32_t, ClosedIS*>* ClosureList, std::vector<ClosedIS*>* newClosures);
 
 void filterCandidates(std::multimap < uint32_t, ClosedIS* >* fGenitors, GenNode* root, std::multimap<uint32_t, ClosedIS*>* ClosureList);
 GenNode* genLookUp(std::set<uint32_t> iset, GenNode* root);
@@ -49,6 +49,8 @@ void descendM(GenNode* n, std::set<uint32_t> t_0, std::multimap<uint32_t, Closed
 ClosedIS* findGenitor(ClosedIS* clos, std::set<uint32_t> t_0);
 void dropObsolete(ClosedIS* clos, std::multimap<uint32_t, ClosedIS*>* ClosureList, GenNode* root);
 void dropObsoleteGs(GenNode* root, ClosedIS* clos);
+void removeChildren(GenNode* gen);
+void innerDelete(GenNode* gen);
 void dropJumper(ClosedIS* clos, std::multimap<uint32_t, ClosedIS*>* ClosureList);
 
 
@@ -92,8 +94,8 @@ struct ClosedIS {
 	ClosedIS* newCI;
 	ClosedIS* gtr;
 	std::set < std::set<uint32_t>* > candidates;
-	std::multimap<uint32_t, ClosedIS*> succ;
-	std::multimap<uint32_t, ClosedIS*> preds;
+	std::multimap<uint32_t, ClosedIS*>* succ;
+	std::multimap<uint32_t, ClosedIS*>* preds;
 
 
 

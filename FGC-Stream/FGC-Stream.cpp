@@ -3,7 +3,7 @@
 
 
 // ADDITION ROUTINE
-void descend(GenNode* n, std::set<uint32_t> X, std::set<uint32_t> t_n, std::multimap<uint32_t, ClosedIS*>* fGenitors, std::multimap<uint32_t, ClosedIS*>* ClosureList) {
+void descend(GenNode* n, std::set<uint32_t> X, std::set<uint32_t> t_n, std::multimap < uint32_t, ClosedIS* >* fGenitors, std::multimap<uint32_t, ClosedIS*>* ClosureList, std::vector<ClosedIS*>* newClosures) {
 	if (n->item != (1 << 31)) { // (1 << 31) is reserved for the root, so n->item = (1 << 31) actually means n is the empty set
 		X.insert(n->item);
 	}
@@ -22,6 +22,9 @@ void descend(GenNode* n, std::set<uint32_t> X, std::set<uint32_t> t_n, std::mult
 			closure = findCI(iset, ClosureList);
 			if (closure == nullptr) {
 				closure = new ClosedIS(iset, n->clos->support + 1, ClosureList);
+				newClosures->push_back(closure);
+				n->clos->preds->insert(std::make_pair(CISSum(closure->itemset), closure));
+				closure->succ->insert(std::make_pair(CISSum(n->clos->itemset), n->clos));
 			}
 			n->clos->newCI = closure;
 			n->clos->visited = true;
@@ -46,7 +49,7 @@ void descend(GenNode* n, std::set<uint32_t> X, std::set<uint32_t> t_n, std::mult
 	if (n->succ != nullptr) {
 		for (auto x : *(n->succ)) {
 			if (t_n.find(x.first) != t_n.end()) {
-				descend(x.second, X, t_n, fGenitors, ClosureList);
+				descend(x.second, X, t_n, fGenitors, ClosureList, newClosures);
 			}
 		}
 	}
@@ -90,16 +93,16 @@ void filterCandidates(std::multimap < uint32_t, ClosedIS* >* fGenitors, GenNode*
 
 			ClosedIS* predNode = findCI(**pred, ClosureList);
 			if (predNode) {
-				predNode->succ.insert(std::make_pair(key, genitor->newCI));
-				std::pair<std::multimap<uint32_t, ClosedIS*>::iterator, std::multimap<uint32_t, ClosedIS*>::iterator> iterpair = predNode->succ.equal_range(oldKey);
+				predNode->succ->insert(std::make_pair(key, genitor->newCI));
+				std::pair<std::multimap<uint32_t, ClosedIS*>::iterator, std::multimap<uint32_t, ClosedIS*>::iterator> iterpair = predNode->succ->equal_range(oldKey);
 				std::multimap<uint32_t, ClosedIS*>::iterator it = iterpair.first;
 				for (; it != iterpair.second; ++it) {
 					if (it->second == genitor) {
-						predNode->succ.erase(it);
+						predNode->succ->erase(it);
 						break;
 					}
 				}
-				genitor->newCI->preds.insert(std::make_pair(CISSum(**pred), predNode));
+				genitor->newCI->preds->insert(std::make_pair(CISSum(**pred), predNode));
 			}
 			else {
 				std::cout << "oh oh" << std::endl;
@@ -110,15 +113,13 @@ void filterCandidates(std::multimap < uint32_t, ClosedIS* >* fGenitors, GenNode*
 
 		// Collects new genitor's predecessors into newPreds ? 
 		// Detach common preds ?
-		std::multimap<uint32_t, ClosedIS*> newPreds;
-		std::set_difference(std::make_move_iterator(genitor->preds.begin()), std::make_move_iterator(genitor->preds.end()),
-			genitor->newCI->preds.begin(), genitor->newCI->preds.end(),
-			std::inserter(newPreds, newPreds.begin())
+		std::multimap<uint32_t, ClosedIS*>* newPreds = new std::multimap<uint32_t, ClosedIS*>;
+		std::set_difference(genitor->preds->begin(), genitor->preds->end(),
+			genitor->newCI->preds->begin(), genitor->newCI->preds->end(),
+			std::inserter(*newPreds, newPreds->begin())
 		);
-		genitor->preds.swap(newPreds);
-		// Link genitor and newCi
-		genitor->preds.insert(std::make_pair(key, genitor->newCI));
-		genitor->newCI->succ.insert(std::make_pair(oldKey, genitor));
+
+		genitor->preds = newPreds;
 	}
 }
 
@@ -214,8 +215,8 @@ void computeJumpers(GenNode* n, std::set<uint32_t> t_n, std::vector<ClosedIS*>* 
 		for(std::set<uint32_t>::const_iterator item = t_n.begin(); item != t_n.end(); item++){
 			if (n->succ->find(*item) == n->succ->end()) {
 				int support = TList->supp_singleton(*item);
-				if (support == minSupp) {
-					if (root->clos->support > minSupp) {
+				if (support >= minSupp) {
+					if (root->clos->support > support) {
 						GenNode* newGen = new GenNode(*item, root, nullptr);
 						std::pair<bool, ClosedIS*> result = computeClosure(newGen, t_n, newClosures, root, TList, ClosureList);
 						if (!result.first) {
@@ -938,7 +939,7 @@ void descendM(GenNode* n, std::set<uint32_t> t_0, std::multimap<uint32_t, Closed
 }
 
 ClosedIS* findGenitor(ClosedIS* clos, std::set<uint32_t> t_0) {
-	for (std::multimap<uint32_t, ClosedIS*>::iterator succIt = clos->succ.begin(); succIt != clos->succ.end(); ++succIt) {
+	for (std::multimap<uint32_t, ClosedIS*>::iterator succIt = clos->succ->begin(); succIt != clos->succ->end(); ++succIt) {
 		ClosedIS* succ = succIt->second;
 		if (clos->support == succ->support + 1 && !(std::includes(t_0.begin(), t_0.end(), succ->itemset.begin(), succ->itemset.end()))) {
 			return succ;
@@ -951,12 +952,12 @@ void dropObsolete(ClosedIS* clos, std::multimap<uint32_t, ClosedIS*>* ClosureLis
 	ClosedIS* cg = clos->gtr;
 	uint32_t keyS = CISSum(cg->itemset);
 
-	for (std::multimap<uint32_t, ClosedIS*>::iterator predIt = clos->preds.begin(); predIt != clos->preds.end(); ++predIt) {
+	for (std::multimap<uint32_t, ClosedIS*>::iterator predIt = clos->preds->begin(); predIt != clos->preds->end(); ++predIt) {
 		ClosedIS* pred = predIt->second;
 		if (pred->gtr == nullptr) {
 			uint32_t keyP = CISSum(pred->itemset);
 			bool link = true;
-			for (std::multimap<uint32_t, ClosedIS*>::iterator succIt = pred->succ.begin(); succIt != pred->succ.end(); ++succIt) {
+			for (std::multimap<uint32_t, ClosedIS*>::iterator succIt = pred->succ->begin(); succIt != pred->succ->end(); ++succIt) {
 				ClosedIS* succ = succIt->second;
 				if (std::includes(cg->itemset.begin(), cg->itemset.end(), succ->itemset.begin(), succ->itemset.end())) {
 					link = false;
@@ -964,14 +965,14 @@ void dropObsolete(ClosedIS* clos, std::multimap<uint32_t, ClosedIS*>* ClosureLis
 				}
 			}
 			if (link) {
-				pred->succ.insert(std::make_pair(keyS, cg));
-				cg->preds.insert(std::make_pair(keyP, pred));
+				pred->succ->insert(std::make_pair(keyS, cg));
+				cg->preds->insert(std::make_pair(keyP, pred));
 			}
-			std::pair<std::multimap<uint32_t, ClosedIS*>::iterator, std::multimap<uint32_t, ClosedIS*>::iterator> iterpair = pred->succ.equal_range(CISSum(clos->itemset));
+			std::pair<std::multimap<uint32_t, ClosedIS*>::iterator, std::multimap<uint32_t, ClosedIS*>::iterator> iterpair = pred->succ->equal_range(CISSum(clos->itemset));
 			std::multimap<uint32_t, ClosedIS*>::iterator it = iterpair.first;
 			for (; it != iterpair.second; ++it) {
 				if (it->second == clos) {
-					pred->succ.erase(it);
+					pred->succ->erase(it);
 					break;
 				}
 			}
@@ -992,13 +993,15 @@ void dropObsolete(ClosedIS* clos, std::multimap<uint32_t, ClosedIS*>* ClosureLis
 	for (std::set<GenNode*>::iterator genIt = clos->gens.begin(); genIt != clos->gens.end(); ++genIt) {
 		GenNode* gen = *genIt;
 		gen->clos = cg;
+		cg->gens.insert(gen);
 	}
 }
 
 void dropObsoleteGs(GenNode* root, ClosedIS* clos) {
 	std::set<uint32_t> face;
 	std::set_difference(clos->gtr->itemset.begin(), clos->gtr->itemset.end(), clos->itemset.begin(), clos->itemset.end(), std::inserter(face, face.end()));
-	for (std::set<GenNode*>::iterator genIt = clos->gtr->gens.begin(); genIt != clos->gtr->gens.end(); ++genIt) {
+	for (std::set<GenNode*>::iterator genIt = clos->gtr->gens.begin(); genIt != clos->gtr->gens.end();) {
+		bool del = false;
 		GenNode* gen = *genIt;
 		std::set<uint32_t> items = gen->items();
 
@@ -1008,27 +1011,33 @@ void dropObsoleteGs(GenNode* root, ClosedIS* clos) {
 		if (inter.size() == 1) {
 			items.erase(*(inter.begin()));
 			GenNode* genO = genLookUp(items, root);
-			//if (genO != nullptr) {
+			
+			if (genO != nullptr) {
 				if (genO->clos == clos) {
-					clos->gtr->gens.erase(genO);
-					genO->parent->succ->erase(genO->item);
-					//TODO : replace this with a clean destructor
+					removeChildren(gen);
+					gen->parent->succ->erase(gen->item);
+					genIt = gen->clos->gens.erase(genIt);
+					del = true;
 				}
-			//}
+			}
+			
+		}
+		if (!del) {
+			genIt++;
 		}
 	}
 
 }
 
 void dropJumper(ClosedIS* clos, std::multimap<uint32_t, ClosedIS*>* ClosureList) {
-	for (std::multimap<uint32_t, ClosedIS*>::iterator predIt = clos->preds.begin(); predIt != clos->preds.end(); ++predIt) {
+	for (std::multimap<uint32_t, ClosedIS*>::iterator predIt = clos->preds->begin(); predIt != clos->preds->end(); ++predIt) {
 		ClosedIS* pred = predIt->second;
 
-		std::pair<std::multimap<uint32_t, ClosedIS*>::iterator, std::multimap<uint32_t, ClosedIS*>::iterator> iterpair = pred->succ.equal_range(CISSum(clos->itemset));
+		std::pair<std::multimap<uint32_t, ClosedIS*>::iterator, std::multimap<uint32_t, ClosedIS*>::iterator> iterpair = pred->succ->equal_range(CISSum(clos->itemset));
 		std::multimap<uint32_t, ClosedIS*>::iterator it = iterpair.first;
 		for (; it != iterpair.second; ++it) {
 			if (it->second == clos) {
-				pred->succ.erase(it);
+				pred->succ->erase(it);
 				break;
 			}
 		}
@@ -1049,11 +1058,23 @@ void dropJumper(ClosedIS* clos, std::multimap<uint32_t, ClosedIS*>* ClosureList)
 	}
 }
 
+void removeChildren(GenNode* gen) {
+	for (std::map<uint32_t, GenNode*>::iterator childIt = gen->succ->begin(); childIt != gen->succ->end();) {
+		innerDelete(childIt->second);
+		childIt = gen->succ->erase(childIt);
+	}
+}
 
-
-
-
-
+void innerDelete(GenNode* gen) {
+	for (std::map<uint32_t, GenNode*>::iterator childIt = gen->succ->begin(); childIt != gen->succ->end();) {
+		innerDelete(childIt->second);
+		childIt = gen->succ->erase(childIt);
+	}
+	gen->clos->gens.erase(gen);
+	if(gen->clos->gtr != nullptr){
+		gen->clos->gtr->gens.erase(gen);
+	}
+}
 
 
 
@@ -1155,6 +1176,9 @@ ClosedIS::ClosedIS(std::set<uint32_t> itemset, uint32_t support, std::multimap<u
 	this->gtr = nullptr;
 	this->id = ++CID;
 	ClosureList->insert(std::make_pair(CISSum(itemset), this));
+	this->preds = new std::multimap<uint32_t, ClosedIS*>;
+	this->succ = new std::multimap<uint32_t, ClosedIS*>;
+
 };
 
 void TIDList::add(std::set<uint32_t> t_n, uint32_t n) {

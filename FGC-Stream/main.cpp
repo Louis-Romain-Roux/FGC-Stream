@@ -21,12 +21,13 @@ void Addition(std::set<uint32_t> t_n, int n, GenNode* root, TIDList* TList, std:
     std::set<uint32_t> emptySet;
     std::multimap<uint32_t, ClosedIS*> fGenitors;
 
-    std::cout << "descending" << std::endl;
-    descend(root, emptySet, t_n, &fGenitors, ClosureList);
+    std::vector<ClosedIS*>* newClosures = new std::vector<ClosedIS*>;
+
+    // do we "really" need to keep newClosures here ?
+    descend(root, emptySet, t_n, &fGenitors, ClosureList, newClosures);
 
     std::cout << "filterCandidates" << std::endl;
     filterCandidates(&fGenitors, root, ClosureList);
-    std::vector<ClosedIS*>* newClosures = new std::vector<ClosedIS*>;
     
     std::cout << "computeJumpers" << std::endl;
     computeJumpers(root, t_n, newClosures, TList, root, ClosureList);
@@ -52,8 +53,8 @@ void Addition(std::set<uint32_t> t_n, int n, GenNode* root, TIDList* TList, std:
             ClosedIS* predNode = findCI(**pred, ClosureList);
             if (predNode) {
               // puis on link dans les deux sens
-              predNode->succ.insert(std::make_pair(key, *jClos));
-              (*jClos)->preds.insert(std::make_pair(CISSum(**pred), predNode));
+              predNode->succ->insert(std::make_pair(key, *jClos));
+              (*jClos)->preds->insert(std::make_pair(CISSum(**pred), predNode));
             }
             else {
               std::cout << "oh pred is null..." << std::endl;
@@ -68,6 +69,7 @@ void Addition(std::set<uint32_t> t_n, int n, GenNode* root, TIDList* TList, std:
 
 
 void Deletion(std::set<uint32_t> t_0, int n, GenNode* root, TIDList* TList, std::multimap<uint32_t, ClosedIS*>* ClosureList) {
+    TList->remove(t_0, n);
     std::vector<ClosedIS*>* iJumpers = new std::vector<ClosedIS*>;
     std::multimap<uint32_t, ClosedIS*>* fObsoletes = new std::multimap<uint32_t, ClosedIS*>;
 
@@ -165,7 +167,7 @@ void printClosureOrderTM(std::multimap<uint32_t, ClosedIS*> ClosureList, std::os
     }
     f << "]|s=" << currCI.support << " => {";
     cursor = 0;
-    for (std::multimap<uint32_t, ClosedIS*>::iterator child = currCI.preds.begin(); child != currCI.preds.end(); ++child) {
+    for (std::multimap<uint32_t, ClosedIS*>::iterator child = currCI.preds->begin(); child != currCI.preds->end(); ++child) {
       ClosedIS currChild = *child->second;
       if (cursor != 0) {
         f << ", ";
@@ -185,7 +187,7 @@ void printClosureOrder(std::multimap<uint32_t, ClosedIS*> ClosureList) {
             std::cout << item << " ";
         }
         std::cout << "} (" << currCI.support << ") has children : ";
-        for (std::multimap<uint32_t, ClosedIS*>::iterator child = currCI.succ.begin(); child != currCI.succ.end(); ++child) {
+        for (std::multimap<uint32_t, ClosedIS*>::iterator child = currCI.succ->begin(); child != currCI.succ->end(); ++child) {
             ClosedIS currChild = *child->second;
             std::cout << "{";
             for (auto item : currChild.itemset) {
@@ -195,7 +197,7 @@ void printClosureOrder(std::multimap<uint32_t, ClosedIS*> ClosureList) {
         }
         std::cout << "\n";
         std::cout << " has predecessors : ";
-        for (std::multimap<uint32_t, ClosedIS*>::iterator child = currCI.preds.begin(); child != currCI.preds.end(); ++child) {
+        for (std::multimap<uint32_t, ClosedIS*>::iterator child = currCI.preds->begin(); child != currCI.preds->end(); ++child) {
           ClosedIS currChild = *child->second;
           std::cout << "{";
           for (auto item : currChild.itemset) {
@@ -229,9 +231,8 @@ void Transaction<uint32_t>::load(char* _s, const char* _delims, const short _wit
 
 int main(int argc, char** argv)
 {
-
   /*for (int k = 0; k < windowSize; k++) {
-     TListByID[k] = new std::set<uint32_t>;
+    TListByID[k] = new std::set<uint32_t>;
   }*/
 
   auto start = std::chrono::high_resolution_clock::now();
@@ -303,10 +304,6 @@ int main(int argc, char** argv)
 
   ClosedIS EmptyClos(closSet, minSupp, &ClosureList);
   GenNode* root = new GenNode(1 << 31, nullptr, &EmptyClos);
-
-
-
-
   while (input.getline(s, 10000)) {
     i++;
     char* pch = strtok(s, " ");
@@ -321,17 +318,16 @@ int main(int argc, char** argv)
 
     std::set<uint32_t> t_n(t_nVec.begin(), t_nVec.end());
 
-
     Addition(t_n, i, root, TList, &ClosureList);
 
 
     /*if (i > windowSize) {
         Deletion(*TListByID[i%windowSize], i-windowSize, root, TList, &ClosureList);
-    }*/
+    }
 
-    //TListByID[i % windowSize]->clear();
-    //TListByID[i % windowSize]->insert(t_n.begin(), t_n.end());
-
+    TListByID[i % windowSize]->clear();
+    TListByID[i % windowSize]->insert(t_n.begin(), t_n.end());
+    */
 
     if (i % 1 == 0) {
       std::cout << i << " transactions processed" << std::endl;
@@ -343,7 +339,6 @@ int main(int argc, char** argv)
     if (i == exitAt) {
       break;
     }
-
   }
   std::cout << "Displaying all found generators as of transaction " << i << " :\n";
 
