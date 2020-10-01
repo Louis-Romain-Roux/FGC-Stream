@@ -23,8 +23,8 @@ void descend(GenNode* n, std::set<uint32_t> X, std::set<uint32_t> t_n, std::mult
 			if (closure == nullptr) {
 				closure = new ClosedIS(iset, n->clos->support + 1, ClosureList);
 				newClosures->push_back(closure);
-				n->clos->preds->insert(std::make_pair(CISSum(closure->itemset), closure));
-				closure->succ->insert(std::make_pair(CISSum(n->clos->itemset), n->clos));
+				//n->clos->preds->insert(std::make_pair(CISSum(closure->itemset), closure));
+				//closure->succ->insert(std::make_pair(CISSum(n->clos->itemset), n->clos));
 			}
 			n->clos->newCI = closure;
 			n->clos->visited = true;
@@ -795,13 +795,14 @@ void dropObsolete(ClosedIS* clos, std::multimap<uint32_t, ClosedIS*>* ClosureLis
 				pred->succ->insert(std::make_pair(keyS, cg));
 				cg->preds->insert(std::make_pair(keyP, pred));
 			}
-			std::pair<std::multimap<uint32_t, ClosedIS*>::iterator, std::multimap<uint32_t, ClosedIS*>::iterator> iterpair = pred->succ->equal_range(CISSum(clos->itemset));
-			std::multimap<uint32_t, ClosedIS*>::iterator it = iterpair.first;
-			for (; it != iterpair.second; ++it) {
-				if (it->second == clos) {
-					pred->succ->erase(it);
-					break;
-				}
+
+		}
+		std::pair<std::multimap<uint32_t, ClosedIS*>::iterator, std::multimap<uint32_t, ClosedIS*>::iterator> iterpair = pred->succ->equal_range(CISSum(clos->itemset));
+		std::multimap<uint32_t, ClosedIS*>::iterator it = iterpair.first;
+		for (; it != iterpair.second; ++it) {
+			if (it->second == clos) {
+				pred->succ->erase(it);
+				break;
 			}
 		}
 	}

@@ -5,9 +5,9 @@
 #include <chrono>
 
 uint32_t NODE_ID = 0;
-uint32_t minSupp = 1;
+uint32_t minSupp = 3;
 uint32_t totalGens = 0;
-const uint32_t windowSize = 20;
+const uint32_t windowSize = 100;
 
 std::set<uint32_t>* TListByID[windowSize];
 
@@ -23,7 +23,7 @@ void Addition(std::set<uint32_t> t_n, int n, GenNode* root, TIDList* TList, std:
 
     std::vector<ClosedIS*>* newClosures = new std::vector<ClosedIS*>;
 
-    // do we "really" need to keep newClosures here ?
+    // do we really need to keep newClosures here ?
 
     descend(root, emptySet, t_n, &fGenitors, ClosureList, newClosures);
 
@@ -141,7 +141,7 @@ int main()
     }
 
     auto start = std::chrono::high_resolution_clock::now();
-    std::ifstream input("Datasets/test_input.txt");
+    std::ifstream input("Datasets/retail.txt");
     char s[10000];
     uint32_t i = 0;
 
@@ -202,7 +202,7 @@ int main()
         i++;
         char* pch = strtok(s, " ");
 
-        if (i == 6) {
+        if (i == 1000) {
             i++; i--;
         }
 
@@ -223,7 +223,7 @@ int main()
         TListByID[i % windowSize]->insert(t_n.begin(), t_n.end());
         
 
-        if (i % 20 == 0) {
+        if (i % 50 == 0) {
             std::cout << i << " transactions processed" << std::endl;
         }
         if (i % 500 == 0) {
