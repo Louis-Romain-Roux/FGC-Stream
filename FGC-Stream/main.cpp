@@ -8,13 +8,15 @@ uint32_t NODE_ID = 0;
 uint32_t minSupp = 3;
 uint32_t totalGens = 0;
 
-const uint32_t windowSize = 0;
+const uint32_t windowSize = 1000;
 
-//std::set<uint32_t>* TListByID[windowSize];
+std::set<uint32_t>* TListByID[windowSize];
 
 int testedJp = 0;
 float sumJp = 0;
 float actgen = 0;
+bool extratext = false;
+
 
 void Addition(std::set<uint32_t> t_n, int n, GenNode* root, TIDList* TList, std::multimap<uint32_t, ClosedIS*>* ClosureList) {
 
@@ -22,22 +24,26 @@ void Addition(std::set<uint32_t> t_n, int n, GenNode* root, TIDList* TList, std:
     std::set<uint32_t> emptySet;
     std::multimap<uint32_t, ClosedIS*> fGenitors;
 
-    std::vector<ClosedIS*>* newClosures = new std::vector<ClosedIS*>;
 
-    descend(root, emptySet, t_n, &fGenitors, ClosureList, newClosures);
-
-    std::cout << "filterCandidates" << std::endl;
+    descend(root, emptySet, t_n, &fGenitors, ClosureList);
+    if (extratext) {
+        std::cout << "filterCandidates" << std::endl;
+    }
     filterCandidates(&fGenitors, root, ClosureList);
-    
-    std::cout << "computeJumpers" << std::endl;
+    std::vector<ClosedIS*>* newClosures = new std::vector<ClosedIS*>;
+    if (extratext) {
+        std::cout << "computeJumpers" << std::endl;
+    }
     computeJumpers(root, t_n, newClosures, TList, root, ClosureList);
-
-    std::cout << "endloop " << newClosures->size() << std::endl;
+    if (extratext) {
+        std::cout << "endloop " << newClosures->size() << std::endl;
+    }
     for (std::vector<ClosedIS*>::iterator jClos = newClosures->begin(); jClos != newClosures->end(); ++jClos) {
-        std::cout << " -------- " << (*jClos)->itemset.size() << " ------ " << t_n.size() << std::endl;
+        if (extratext) {
+            std::cout << " -------- " << (*jClos)->itemset.size() << " ------ " << t_n.size() << std::endl;
+        }
 
         std::set<std::set<uint32_t>*> preds = compute_preds_exp(*jClos);
-
         //std::set<std::set<uint32_t>*> preds = std::set<std::set<uint32_t>*>();
         //compute_generators_v2(&preds, *jClos);
 
@@ -46,7 +52,9 @@ void Addition(std::set<uint32_t> t_n, int n, GenNode* root, TIDList* TList, std:
         }*/
 
         uint32_t key = CISSum((*jClos)->itemset);
-        std::cout << "|preds|=" << preds.size() << std::endl;
+        if (extratext) {
+            std::cout << "|preds|=" << preds.size() << std::endl;
+        }
         //for (std::vector<std::set<uint32_t>*>::iterator pred = preds.begin(); pred != preds.end(); ++pred) {
         for (std::set<std::set<uint32_t>*>::iterator pred = preds.begin(); pred != preds.end(); ++pred) {
             // pour chaque predecesseur, on le retrouve via son intent
@@ -62,7 +70,9 @@ void Addition(std::set<uint32_t> t_n, int n, GenNode* root, TIDList* TList, std:
             delete *pred;
         }
     }
-    std::cout << "reseting" << std::endl;
+    if (extratext) {
+        std::cout << "reseting" << std::endl;
+    }
     //std::cout << testedJp << " jumpers tested.\n";
     closureReset(ClosureList); // This is needed to set all visited flags back to false and clear the candidate list
 }
@@ -231,16 +241,17 @@ void Transaction<uint32_t>::load(char* _s, const char* _delims, const short _wit
 
 int main(int argc, char** argv)
 {
-  /*for (int k = 0; k < windowSize; k++) {
+  for (int k = 0; k < windowSize; k++) {
     TListByID[k] = new std::set<uint32_t>;
-  }*/
+  }
 
   auto start = std::chrono::high_resolution_clock::now();
 
+
   uint32_t exitAt = 0;
-  if (argc < 2) return 1;
+  if (argc < 3) return 1;
   minSupp = strtoul(argv[2], 0, 10);//1;
-  if (argc >= 3) {
+  if (argc >= 4) {
     exitAt = strtoul(argv[3], 0, 10);//1;
   }
   std::ifstream input(/*"Datasets/in.txt"*/argv[1]);
@@ -249,10 +260,10 @@ int main(int argc, char** argv)
 
   char* output_cis_gen = 0;
   char* output_order = 0;
-  if (argc >= 4) {
+  if (argc >=5) {
     output_cis_gen = argv[4];
   }
-  if (argc >= 5) {
+  if (argc >= 6) {
     output_order = argv[5];
   }
 
@@ -266,7 +277,7 @@ int main(int argc, char** argv)
   Transaction<uint32_t> new_transaction = Transaction<uint32_t>(pch, " ", 0);
   i++;
   std::vector<uint32_t> closSetvec = *new_transaction.data();
-  //TListByID[i % windowSize]->insert(closSetvec.begin(), closSetvec.end());
+  TListByID[i % windowSize]->insert(closSetvec.begin(), closSetvec.end());
 
   closSet.insert(closSetvec.begin(), closSetvec.end());
   TList->add(closSet, i);
@@ -278,7 +289,7 @@ int main(int argc, char** argv)
     Transaction<uint32_t> new_transaction = Transaction<uint32_t>(pch, " ", 0);
     i++;
     std::vector<uint32_t> closSetvec = *new_transaction.data();
-    //TListByID[i % windowSize]->insert(closSetvec.begin(), closSetvec.end());
+    TListByID[i % windowSize]->insert(closSetvec.begin(), closSetvec.end());
 
     std::set<uint32_t> closSetPart(closSetvec.begin(), closSetvec.end());
     TList->add(closSetPart, i);
@@ -308,7 +319,7 @@ int main(int argc, char** argv)
   while (input.getline(s, 10000)) {
     i++;
     char* pch = strtok(s, " ");
-
+    if (i > 2500)break;
 
     Transaction<uint32_t> new_transaction = Transaction<uint32_t>(pch, " ", 0);
     std::vector<uint32_t> t_nVec = *new_transaction.data();
@@ -318,15 +329,15 @@ int main(int argc, char** argv)
     Addition(t_n, i, root, TList, &ClosureList);
 
 
-    /*if (i > windowSize) {
+    if (i > windowSize) {
         Deletion(*TListByID[i%windowSize], i-windowSize, root, TList, &ClosureList);
     }
 
     TListByID[i % windowSize]->clear();
     TListByID[i % windowSize]->insert(t_n.begin(), t_n.end());
-    */
+    
 
-    if (i % 1 == 0) {
+    if (i % 20 == 0) {
       std::cout << i << " transactions processed" << std::endl;
     }
     if (i % 50 == 0) {
@@ -348,7 +359,9 @@ int main(int argc, char** argv)
       f.close();
     }
     //"./output-cis-gens.txt"
+    printAllClosuresWithGens(ClosureList);
     std::cout << "Total number of generators: " << totalGens << "\n";
+    printClosureOrder(ClosureList);
 
     if (output_order) {
       std::ofstream f2;

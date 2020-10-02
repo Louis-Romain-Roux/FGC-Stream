@@ -3,7 +3,7 @@
 
 
 // ADDITION ROUTINE
-void descend(GenNode* n, std::set<uint32_t> X, std::set<uint32_t> t_n, std::multimap < uint32_t, ClosedIS* >* fGenitors, std::multimap<uint32_t, ClosedIS*>* ClosureList, std::vector<ClosedIS*>* newClosures) {
+void descend(GenNode* n, std::set<uint32_t> X, std::set<uint32_t> t_n, std::multimap < uint32_t, ClosedIS* >* fGenitors, std::multimap<uint32_t, ClosedIS*>* ClosureList) {
 	if (n->item != (1 << 31)) { // (1 << 31) is reserved for the root, so n->item = (1 << 31) actually means n is the empty set
 		X.insert(n->item);
 	}
@@ -22,7 +22,6 @@ void descend(GenNode* n, std::set<uint32_t> X, std::set<uint32_t> t_n, std::mult
 			closure = findCI(iset, ClosureList);
 			if (closure == nullptr) {
 				closure = new ClosedIS(iset, n->clos->support + 1, ClosureList);
-				newClosures->push_back(closure);
 				//n->clos->preds->insert(std::make_pair(CISSum(closure->itemset), closure));
 				//closure->succ->insert(std::make_pair(CISSum(n->clos->itemset), n->clos));
 			}
@@ -49,7 +48,7 @@ void descend(GenNode* n, std::set<uint32_t> X, std::set<uint32_t> t_n, std::mult
 	if (n->succ != nullptr) {
 		for (auto x : *(n->succ)) {
 			if (t_n.find(x.first) != t_n.end()) {
-				descend(x.second, X, t_n, fGenitors, ClosureList, newClosures);
+				descend(x.second, X, t_n, fGenitors, ClosureList);
 			}
 		}
 	}
@@ -110,6 +109,8 @@ void filterCandidates(std::multimap < uint32_t, ClosedIS* >* fGenitors, GenNode*
 			delete* pred;
 		}
 
+		genitor->preds->insert(std::make_pair(key, genitor->newCI));
+		genitor->newCI->succ->insert(std::make_pair(oldKey, genitor));
 
 		// Collects new genitor's predecessors into newPreds ? 
 		// Detach common preds ?
@@ -120,6 +121,10 @@ void filterCandidates(std::multimap < uint32_t, ClosedIS* >* fGenitors, GenNode*
 		);
 
 		genitor->preds = newPreds;
+		
+
+
+
 	}
 }
 
@@ -368,14 +373,18 @@ std::set<std::set<uint32_t>*> compute_preds_exp(ClosedIS* clos) {
 	for (size_t i = 0; i != generators->size(); ++i) {
 		vector<uint32_t>* const f = &generators->at(i);
 
-		std::cout << i << " => ";
-		print_concept_as_vector(f);
-		std::cout << std::endl;
-		
+		if (extratext) {
+			std::cout << i << " => ";
+			print_concept_as_vector(f);
+			std::cout << std::endl;
+		}
+
 		if (f->size() == 1) {
 			//generateur singleton, il sera partout
 			singletons.push_back(i);
-			std::cout << "skipping gen_" << i << ", is singleton" << std::endl;
+			if (extratext) {
+				std::cout << "skipping gen_" << i << ", is singleton" << std::endl;
+			}
 			continue;
 		}
 		for (size_t j = 0; j != f->size(); ++j) {
@@ -394,9 +403,11 @@ std::set<std::set<uint32_t>*> compute_preds_exp(ClosedIS* clos) {
 		std::map<uint32_t, vector<uint32_t>>::iterator it = reversed_gens->begin();
 		for (; it != reversed_gens->end(); ++it) {
 
-			std::cout << "for " << it->first << " => ";
-			print_concept_as_vector(&it->second);
-			std::cout << std::endl;
+			if (extratext) {
+				std::cout << "for " << it->first << " => ";
+				print_concept_as_vector(&it->second);
+				std::cout << std::endl;
+			}
 
 			if (it->second.size() == /*generators->size()*/pruned_pos) {
 				//il est un generateur singleton
@@ -418,14 +429,16 @@ std::set<std::set<uint32_t>*> compute_preds_exp(ClosedIS* clos) {
 		}
 	}
 
+	if (extratext) {
+		std::cout << "pruned/gen " << pruned_pos << " vs " << generators->size() << std::endl;
+		/*if (pruned_pos > 256) {
+			std::cout << "";
+			exit(200);
+		}*/
 
-	std::cout << "pruned/gen " << pruned_pos << " vs " << generators->size() << std::endl;
-	/*if (pruned_pos > 256) {
-		std::cout << "";
-		exit(200);
-	}*/
+		std::cout << "mining faces with new strat " << item_candidates.size() << " vs " << generators->size() << std::endl;
+	}
 
-	std::cout << "mining faces with new strat " << item_candidates.size() << " vs " << generators->size() << std::endl;
 	if (pruned_pos != 0) {
 
 		vector<MinNode*> all_nodes = vector<MinNode*>();
@@ -454,23 +467,32 @@ std::set<std::set<uint32_t>*> compute_preds_exp(ClosedIS* clos) {
 				atom->fidset = fidset;
 #else
 				atom->fidset = fid_left;
-				print_concept_as_vector(atom->fidset);
-				std::cout << std::endl;
+				if (extratext) {
+					print_concept_as_vector(atom->fidset);
+					std::cout << std::endl;
+				}
 #endif
 				atom->item = item;
 				//atom->generator = new_gen;
 				atom->size = 1;
-				if (atom->fidset->size() >= pruned_pos) {
-					std::cout << "";
+				if (extratext) {
+					if (atom->fidset->size() >= pruned_pos) {
+						std::cout << "";
+					}
 				}
 			}
 			all_nodes.push_back(atom);
-			std::cout << "---item = " << atom->item << " --" << j << " vs " << item_candidates.size() << " | " << all_nodes.size() << std::endl;
+			if (extratext) {
+				std::cout << "---item = " << atom->item << " --" << j << " vs " << item_candidates.size() << " | " << all_nodes.size() << std::endl;
+			}
 			grow_generator(1, faces_as_trie_nodes, /*generators->size()*/pruned_pos, atom, ROOT, &all_nodes);
-			std::cout << "-----" << std::endl;
+			if (extratext) {
+				std::cout << "-----" << std::endl;
+			}
 		}
-
-		std::cout << "done mining faces with new strat" << std::endl;
+		if (extratext) {
+			std::cout << "done mining faces with new strat" << std::endl;
+		}
 
 		// rebuild faces as itemsets
 		vector<MinNode*>::iterator it_faces = faces_as_trie_nodes->begin();
@@ -490,14 +512,16 @@ std::set<std::set<uint32_t>*> compute_preds_exp(ClosedIS* clos) {
 			}
 
 			_faces->push_back(face);
-			print_concept_as_set(&face);
-			std::cout << " w ";
-			print_concept_as_vector(tnode->fidset);
-			std::cout << std::endl;
+			if (extratext) {
+				print_concept_as_set(&face);
+				std::cout << " w ";
+				print_concept_as_vector(tnode->fidset);
+				std::cout << std::endl;
+			}
 		}
-
-		std::cout << " we have " << _faces->size() << " total faces and " << faces_as_trie_nodes->size() << " new ones " << std::endl;
-
+		if (extratext) {
+			std::cout << " we have " << _faces->size() << " total faces and " << faces_as_trie_nodes->size() << " new ones " << std::endl;
+		}
 		// release/free all trie nodes
 		vector<MinNode*>::iterator it = all_nodes.begin();
 		for (; it != all_nodes.end(); ++it) {
@@ -512,8 +536,10 @@ std::set<std::set<uint32_t>*> compute_preds_exp(ClosedIS* clos) {
 		//perform_minimality_test(_faces);
 
 		delete reversed_gens;
+		if (extratext) {
+			std::cout << "ok all cleaned" << std::endl;
+		}
 
-		std::cout << "ok all cleaned" << std::endl;
 	}
 	else {
 		std::set<uint32_t> face = std::set<uint32_t>();
@@ -535,14 +561,17 @@ std::set<std::set<uint32_t>*> compute_preds_exp(ClosedIS* clos) {
 				pred->erase(f->at(0));
 			}*/
 		preds.insert(pred);
-		print_concept_as_set(pred);
-		std::cout << std::endl;
+		if (extratext) {
+			print_concept_as_set(pred);
+			std::cout << std::endl;
+		}
 	}
 
 	delete _faces;
 	delete faces_as_trie_nodes;
-
-	std::cout << "built predecessors" << std::endl;
+	if (extratext) {
+		std::cout << "built predecessors" << std::endl;
+	}
 
 	delete generators;
 	return preds;
@@ -590,10 +619,11 @@ void grow_generator(uint32_t _depth, vector<MinNode*>* _generators,
 		vector<uint32_t>::iterator it = set_union(fid_in->begin(), fid_in->end(), fid_right->begin(), fid_right->end(), fid_out->begin());
 		fid_out->resize(it - fid_out->begin());
 
-		if (fid_out->size() > _nbr_faces) {
-			std::cout << "";
+		if (extratext) {
+			if (fid_out->size() > _nbr_faces) {
+				std::cout << "";
+			}
 		}
-
 		//std::cout << fid_out << " vs " << fid_in << " vs " << fid_right << " vs " << max_fidset << "|" << _faces->size() << std::endl;
 		if (fid_out->size() != fid_in->size() && fid_out->size() != fid_right->size() && fid_out->size() == _nbr_faces) {
 #endif
@@ -746,8 +776,9 @@ MinNode* get_from_path(vector<uint32_t>* const _path, MinNode* const _root) {
 set<set<uint32_t>*> compute_preds_efficient(ClosedIS* clos) {
 	vector<vector<uint32_t>> _generators;
 	//Fill with generators
-
-	std::cout << "gens " << clos->gens.size() << std::endl;
+	if (extratext) {
+		std::cout << "gens " << clos->gens.size() << std::endl;
+	}
 
 	for (set<GenNode*>::iterator genIt = clos->gens.begin(); genIt != clos->gens.end(); ++genIt) {
 		set<uint32_t> itemsS = (*genIt)->items();
@@ -777,8 +808,9 @@ set<set<uint32_t>*> compute_preds_efficient(ClosedIS* clos) {
 			//std::cout << "" << std::endl;
 			exit(1);
 		}
-		std::cout << "i = " << i << std::endl;
-
+		if (extratext) {
+			std::cout << "i = " << i << std::endl;
+		}
 		//std::map<uint32_t, std::vector<size_t>> test_index_gen;
 		test_strat_face.clear();
 		// loop on one face
@@ -798,8 +830,9 @@ set<set<uint32_t>*> compute_preds_efficient(ClosedIS* clos) {
 
 		// Check minimality
 		_faces->clear();
-
-		std::cout << "facetemp " << faceTemp.size() << std::endl;
+		if (extratext) {
+			std::cout << "facetemp " << faceTemp.size() << std::endl;
+		}
 
 		for (size_t j = 0; j != faceTemp.size(); ++j) {
 			// check min
@@ -852,7 +885,9 @@ set<set<uint32_t>*> compute_preds_efficient(ClosedIS* clos) {
 		faceTemp.clear();
 	}
 	// here we have candidate generators
-	std::cout << "minimality tests " << std::endl;
+	if (extratext) {
+		std::cout << "minimality tests " << std::endl;
+	}
 	vector<set<uint32_t>> realFaces;
 	for (size_t k = 0; k != _faces->size(); ++k) {
 		set<uint32_t>* g = &_faces->at(k);
@@ -874,8 +909,9 @@ set<set<uint32_t>*> compute_preds_efficient(ClosedIS* clos) {
 		set<uint32_t>* gg = &realFaces.at(j);
 		_faces->push_back(*gg);
 	}
-
-	std::cout << "final checks" << std::endl;
+	if (extratext) {
+		std::cout << "final checks" << std::endl;
+	}
 	//final checks
 	for (size_t k = 0; k != _faces->size(); ++k) {
 		set<uint32_t>* g = &_faces->at(k);
@@ -887,7 +923,9 @@ set<set<uint32_t>*> compute_preds_efficient(ClosedIS* clos) {
 			}
 		}
 	}
-	std::cout << _faces->size() << " from " << _generators.size() << std::endl;
+	if (extratext) {
+		std::cout << _faces->size() << " from " << _generators.size() << std::endl;
+	}
 
 	std::set<std::set<uint32_t>*> preds;
 	for (std::vector<std::set<uint32_t>>::iterator face = _faces->begin(); face != _faces->end(); ++face) {

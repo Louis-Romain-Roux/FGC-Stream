@@ -19,10 +19,11 @@ extern uint32_t NODE_ID;
 extern uint32_t minSupp;
 extern int testedJp;
 extern float actgen;
+extern bool extratext;
 
 //#define USE_INT_BITSETS
 
-void descend(GenNode* n, std::set<uint32_t> X, std::set<uint32_t> t_n, std::multimap < uint32_t, ClosedIS* >* fGenitors, std::multimap<uint32_t, ClosedIS*>* ClosureList, std::vector<ClosedIS*>* newClosures);
+void descend(GenNode* n, std::set<uint32_t> X, std::set<uint32_t> t_n, std::multimap < uint32_t, ClosedIS* >* fGenitors, std::multimap<uint32_t, ClosedIS*>* ClosureList);
 
 void filterCandidates(std::multimap < uint32_t, ClosedIS* >* fGenitors, GenNode* root, std::multimap<uint32_t, ClosedIS*>* ClosureList);
 GenNode* genLookUp(std::set<uint32_t> iset, GenNode* root);
