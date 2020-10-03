@@ -54,6 +54,7 @@ void descend(GenNode* n, std::set<uint32_t> X, std::set<uint32_t> t_n, std::mult
 	}
 }
 
+
 void filterCandidates(std::multimap < uint32_t, ClosedIS* >* fGenitors, GenNode* root, std::multimap<uint32_t, ClosedIS*>* ClosureList) {
 	for (std::multimap<uint32_t, ClosedIS*>::iterator genitorEntry = fGenitors->begin(); genitorEntry != fGenitors->end(); ++genitorEntry) {
 		ClosedIS* genitor = genitorEntry->second;
@@ -1280,6 +1281,8 @@ int TIDList::singleInterSupp(uint32_t item, std::set<uint32_t> currTIDList) {
 }
 
 std::set<uint32_t> TIDList::getISTL(std::set<uint32_t> itemset) {
+
+
 	std::set<uint32_t> iset = *this->TransactionList[*itemset.begin()];
 	for (auto item : itemset) {
 

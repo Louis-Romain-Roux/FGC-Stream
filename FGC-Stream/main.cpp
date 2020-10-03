@@ -8,7 +8,7 @@ uint32_t NODE_ID = 0;
 uint32_t minSupp = 3;
 uint32_t totalGens = 0;
 
-const uint32_t windowSize = 1000;
+const uint32_t windowSize = 50;
 
 std::set<uint32_t>* TListByID[windowSize];
 
@@ -219,6 +219,39 @@ void printClosureOrder(std::multimap<uint32_t, ClosedIS*> ClosureList) {
     }
 }
 
+void sanityCheck(GenNode* n) {
+    if (n->clos == nullptr) {
+        std::cout << "Sanity check failed for \"generator\" ";
+        for (auto item : n->items()) {
+            std::cout << item << " ";
+        }
+        std::cout << "\n";
+    }
+    for (std::map<uint32_t, GenNode*>::iterator child = n->succ->begin(); child != n->succ->end(); ++child) {
+        sanityCheck(child->second);
+    }
+}
+
+//only use this for (very) small datasets
+void sanityCheck_full(ClosedIS* clos, TIDList* TList) {
+    std::set<uint32_t> cIS = clos->itemset;
+    std::set<uint32_t> closTL;
+
+    if(!cIS.empty())closTL = TList->getISTL(clos->itemset);
+
+    for (std::set<GenNode*>::iterator genIt = clos->gens.begin(); genIt != clos->gens.end(); ++genIt) {
+        std::set<uint32_t> items = (*genIt)->items();
+        if (!items.empty()){
+            std::set<uint32_t> genTL = TList->getISTL(items);
+            if (closTL != genTL) {
+                std::cout << "pseudo-full SC failed !\n";
+            }
+        }
+    }
+}
+
+
+
 // template override due to what seems to be a VS bug ?
 // comment this function, and compare readings of trx with debug/release configs
 // if differences between D and R, then nasty bug still present...
@@ -319,7 +352,11 @@ int main(int argc, char** argv)
   while (input.getline(s, 10000)) {
     i++;
     char* pch = strtok(s, " ");
-    if (i > 2500)break;
+    sanityCheck(root);
+    for (std::multimap<uint32_t, ClosedIS*>::iterator closIT = ClosureList.begin(); closIT != ClosureList.end(); ++closIT) {
+        ClosedIS* clos = closIT->second;
+        sanityCheck_full(clos, TList);
+    }
 
     Transaction<uint32_t> new_transaction = Transaction<uint32_t>(pch, " ", 0);
     std::vector<uint32_t> t_nVec = *new_transaction.data();
@@ -359,9 +396,9 @@ int main(int argc, char** argv)
       f.close();
     }
     //"./output-cis-gens.txt"
-    printAllClosuresWithGens(ClosureList);
+    //printAllClosuresWithGens(ClosureList);
     std::cout << "Total number of generators: " << totalGens << "\n";
-    printClosureOrder(ClosureList);
+    //printClosureOrder(ClosureList);
 
     if (output_order) {
       std::ofstream f2;
