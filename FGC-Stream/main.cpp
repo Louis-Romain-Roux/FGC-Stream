@@ -8,7 +8,7 @@ uint32_t NODE_ID = 0;
 uint32_t minSupp = 3;
 uint32_t totalGens = 0;
 
-const uint32_t windowSize = 50;
+const uint32_t windowSize = 1000;
 
 std::set<uint32_t>* TListByID[windowSize];
 
@@ -351,13 +351,15 @@ int main(int argc, char** argv)
   GenNode* root = new GenNode(1 << 31, nullptr, &EmptyClos);
   while (input.getline(s, 10000)) {
     i++;
+
     char* pch = strtok(s, " ");
+    /*
     sanityCheck(root);
     for (std::multimap<uint32_t, ClosedIS*>::iterator closIT = ClosureList.begin(); closIT != ClosureList.end(); ++closIT) {
         ClosedIS* clos = closIT->second;
         sanityCheck_full(clos, TList);
     }
-
+    */
     Transaction<uint32_t> new_transaction = Transaction<uint32_t>(pch, " ", 0);
     std::vector<uint32_t> t_nVec = *new_transaction.data();
 
@@ -374,10 +376,10 @@ int main(int argc, char** argv)
     TListByID[i % windowSize]->insert(t_n.begin(), t_n.end());
     
 
-    if (i % 20 == 0) {
+    if (i % 50 == 0) {
       std::cout << i << " transactions processed" << std::endl;
     }
-    if (i % 50 == 0) {
+    if (i % 500 == 0) {
       auto stop = std::chrono::high_resolution_clock::now();
       std::cout << std::chrono::duration_cast<std::chrono::milliseconds>(stop - start).count() << " milliseconds elapsed between start and current transaction" << std::endl;
     }

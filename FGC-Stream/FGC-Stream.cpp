@@ -132,7 +132,9 @@ void filterCandidates(std::multimap < uint32_t, ClosedIS* >* fGenitors, GenNode*
 void computeJumpers(GenNode* n, std::set<uint32_t> t_n, std::vector<ClosedIS*>* newClosures, TIDList* TList, GenNode* root, std::multimap<uint32_t, ClosedIS*>* ClosureList) {
 
 	for (std::map<uint32_t, GenNode*>::const_iterator child = n->succ->begin(); child != n->succ->end(); child++) {
-		computeJumpers(child->second, t_n, newClosures, TList, root, ClosureList);
+		if (t_n.find(child->second->item) != t_n.end()) {
+			computeJumpers(child->second, t_n, newClosures, TList, root, ClosureList);
+		}
 	}
 
 	//The below is experimental, seems a bit faster.
