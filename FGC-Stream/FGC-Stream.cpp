@@ -274,8 +274,12 @@ std::pair<bool,ClosedIS*> computeClosure(GenNode* gen, std::set<uint32_t> t_n, s
 		}
 	}
 
-
+	// Weird...
 	ClosedIS* clos = findCI(currClosure, ClosureList);
+	if (clos != nullptr) {
+		std::cout << "Weird\n";
+	}
+
 	if (clos == nullptr) {
 		clos = new ClosedIS(currClosure, minSupp, ClosureList);
 	}
@@ -1000,12 +1004,13 @@ void dropObsolete(ClosedIS* clos, std::multimap<uint32_t, ClosedIS*>* ClosureLis
 			bool link = true;
 			for (std::multimap<uint32_t, ClosedIS*>::iterator succIt = pred->succ->begin(); succIt != pred->succ->end(); ++succIt) {
 				ClosedIS* succ = succIt->second;
-				if (std::includes(cg->itemset.begin(), cg->itemset.end(), succ->itemset.begin(), succ->itemset.end())) {
+				if (std::includes(cg->itemset.begin(), cg->itemset.end(), succ->itemset.begin(), succ->itemset.end()) && succ!=clos) {
 					link = false;
 					break;
 				}
 			}
 			if (link) {
+				std::cout << "Not dead code!\n";
 				pred->succ->insert(std::make_pair(keyS, cg));
 				cg->preds->insert(std::make_pair(keyP, pred));
 			}
@@ -1061,6 +1066,9 @@ void dropObsoleteGs(GenNode* root, ClosedIS* clos) {
 					genIt = gen->clos->gens.erase(genIt);
 					del = true;
 				}
+			}
+			else {
+				std::cout << "weird2\n";
 			}
 			
 		}
@@ -1203,7 +1211,7 @@ int CISSum(std::set<uint32_t> Itemset) {
 	int mult = 1; // This will "slightly" reduce collisions
 	for (auto item : Itemset) {
 		sum += item*mult;
-		mult *= 10;
+		mult *= 10; // Wouold overflows cause an error ? They shouldn't...
 	}
 	return sum;
 }

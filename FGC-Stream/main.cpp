@@ -8,7 +8,7 @@ uint32_t NODE_ID = 0;
 uint32_t minSupp = 3;
 uint32_t totalGens = 0;
 
-const uint32_t windowSize = 1000;
+const uint32_t windowSize = 100;
 
 std::set<uint32_t>* TListByID[windowSize];
 
@@ -352,6 +352,14 @@ int main(int argc, char** argv)
   while (input.getline(s, 10000)) {
     i++;
 
+    if (ClosureList.find(160152528) != ClosureList.end()) {
+        std::cout << "OK\n";
+    }
+
+    if (i == 121) {
+        i++; i--;
+    }
+
     char* pch = strtok(s, " ");
     /*
     sanityCheck(root);
@@ -376,7 +384,7 @@ int main(int argc, char** argv)
     TListByID[i % windowSize]->insert(t_n.begin(), t_n.end());
     
 
-    if (i % 50 == 0) {
+    if (i % 1 == 0) {
       std::cout << i << " transactions processed" << std::endl;
     }
     if (i % 500 == 0) {
