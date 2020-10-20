@@ -8,7 +8,7 @@ uint32_t NODE_ID = 0;
 uint32_t minSupp = 3;
 uint32_t totalGens = 0;
 
-const uint32_t windowSize = 100;
+const uint32_t windowSize = 1000;
 
 std::set<uint32_t>* TListByID[windowSize];
 
@@ -23,18 +23,18 @@ void Addition(std::set<uint32_t> t_n, int n, GenNode* root, TIDList* TList, std:
     TList->add(t_n, n);
     std::set<uint32_t> emptySet;
     std::multimap<uint32_t, ClosedIS*> fGenitors;
+    std::vector<ClosedIS*>* newClosures = new std::vector<ClosedIS*>;
 
 
-    descend(root, emptySet, t_n, &fGenitors, ClosureList);
+    descend(root, emptySet, t_n, &fGenitors, ClosureList, newClosures, TList, root);
     if (extratext) {
         std::cout << "filterCandidates" << std::endl;
     }
     filterCandidates(&fGenitors, root, ClosureList);
-    std::vector<ClosedIS*>* newClosures = new std::vector<ClosedIS*>;
     if (extratext) {
         std::cout << "computeJumpers" << std::endl;
     }
-    computeJumpers(root, t_n, newClosures, TList, root, ClosureList);
+    //computeJumpers(root, t_n, newClosures, TList, root, ClosureList);
     if (extratext) {
         std::cout << "endloop " << newClosures->size() << std::endl;
     }
@@ -352,9 +352,6 @@ int main(int argc, char** argv)
   while (input.getline(s, 10000)) {
     i++;
 
-    if (ClosureList.find(160152528) != ClosureList.end()) {
-        std::cout << "OK\n";
-    }
 
     if (i == 121) {
         i++; i--;
@@ -384,7 +381,7 @@ int main(int argc, char** argv)
     TListByID[i % windowSize]->insert(t_n.begin(), t_n.end());
     
 
-    if (i % 1 == 0) {
+    if (i % 100 == 0) {
       std::cout << i << " transactions processed" << std::endl;
     }
     if (i % 500 == 0) {
@@ -395,7 +392,22 @@ int main(int argc, char** argv)
       break;
     }
   }
+  bool removeEnd = true;
+  if (removeEnd) {
+      std::cout << "removing...\n";
+      uint32_t imax = i + windowSize - minSupp;
+      while (i++ < imax) {
+          Deletion(*TListByID[i % windowSize], i - windowSize, root, TList, &ClosureList);
+          if ((imax - i) % 100 == 0) {
+              std::cout << imax - i << " transactions left\n";
+          }
+      }
+  }
+
+  
   std::cout << "Displaying all found generators as of transaction " << i << " :\n";
+
+
 
   //printAllClosuresWithGensTM(ClosureList, output_cis_gen);
     if (output_cis_gen) {

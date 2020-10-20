@@ -3,7 +3,7 @@
 
 
 // ADDITION ROUTINE
-void descend(GenNode* n, std::set<uint32_t> X, std::set<uint32_t> t_n, std::multimap < uint32_t, ClosedIS* >* fGenitors, std::multimap<uint32_t, ClosedIS*>* ClosureList) {
+void descend(GenNode* n, std::set<uint32_t> X, std::set<uint32_t> t_n, std::multimap < uint32_t, ClosedIS* >* fGenitors, std::multimap<uint32_t, ClosedIS*>* ClosureList, std::vector<ClosedIS*>* newClosures, TIDList* TList, GenNode* root) {
 	if (n->item != (1 << 31)) { // (1 << 31) is reserved for the root, so n->item = (1 << 31) actually means n is the empty set
 		X.insert(n->item);
 	}
@@ -46,12 +46,14 @@ void descend(GenNode* n, std::set<uint32_t> X, std::set<uint32_t> t_n, std::mult
 		n->clos = closure;
 	}
 	if (n->succ != nullptr) {
-		for (auto x : *(n->succ)) {
-			if (t_n.find(x.first) != t_n.end()) {
-				descend(x.second, X, t_n, fGenitors, ClosureList);
+		for (std::map<uint32_t, GenNode*>::reverse_iterator genIt = n->succ->rbegin(); genIt != n->succ->rend(); ++genIt) {
+			GenNode* child = genIt->second;
+			if (t_n.find(genIt->first) != t_n.end()) {
+				descend(child, X, t_n, fGenitors, ClosureList, newClosures, TList, root);
 			}
 		}
 	}
+	computeJumperKids(n, t_n, newClosures, TList, root, ClosureList);
 }
 
 
@@ -285,6 +287,113 @@ std::pair<bool,ClosedIS*> computeClosure(GenNode* gen, std::set<uint32_t> t_n, s
 	}
 	return std::make_pair(false, clos);
 }
+
+void computeJumperKids(GenNode* n, std::set<uint32_t> t_n, std::vector<ClosedIS*>* newClosures, TIDList* TList, GenNode* root, std::multimap<uint32_t, ClosedIS*>* ClosureList) {
+
+	//The below is experimental, seems a bit faster.
+	std::set<uint32_t> intersect;
+	class key_iterator : public std::map<uint32_t, GenNode*>::iterator
+	{
+	public:
+		key_iterator() : std::map<uint32_t, GenNode*>::iterator() {};
+		key_iterator(std::map<uint32_t, GenNode*>::iterator s) : std::map<uint32_t, GenNode*>::iterator(s) {};
+		uint32_t* operator->() { return (uint32_t* const)&(std::map<uint32_t, GenNode*>::iterator::operator->()->first); }
+		uint32_t operator*() { return std::map<uint32_t, GenNode*>::iterator::operator*().first; }
+	};
+
+	key_iterator mybegin(n->succ->begin());
+	key_iterator myend(n->succ->end());
+
+	std::set_intersection
+	(mybegin, myend,
+		t_n.begin(), t_n.end(),
+		std::inserter(intersect, intersect.begin()));
+
+	//Different ways of iterating
+	//The fastest way (limited testing done) seems to be the uncommented version below.
+
+	//for(std::set<uint32_t>::const_iterator lefti = t_n.begin(); lefti!=t_n.end(); lefti++){
+	//for (std::map<uint32_t, GenNode*>::const_iterator left = n->succ->begin(); left != n->succ->end(); left++) {
+	for (std::set<uint32_t>::const_iterator lefti = intersect.begin(); lefti != intersect.end(); lefti++) {
+		//std::map<uint32_t, GenNode*>::iterator left = n->succ->find(*lefti);
+		GenNode* left = (*n->succ)[*lefti];
+		//if (left != n->succ->end()) {
+		//if (t_n.find(left->second->item) != t_n.end()) {
+		std::set<uint32_t> ISTL;
+		std::set<uint32_t> candIS;
+		for (std::set<uint32_t>::const_iterator righti = std::next(lefti); righti != intersect.end(); righti++) {
+			//for (std::set<uint32_t>::const_iterator righti = std::next(lefti); righti != t_n.end(); righti++) {
+			//for (std::map<uint32_t, GenNode*>::const_iterator right = std::next(left); right != n->succ->end(); right++) {
+				//std::map<uint32_t, GenNode*>::iterator right = n->succ->find(*righti);
+			GenNode* right = (*n->succ)[*righti];
+
+			//if (right != n->succ->end()) {
+			//if (t_n.find(right->second->item) != t_n.end()) {
+				//GenNode* leftN = left->second;
+				//GenNode* rightN = right->second;
+			GenNode* leftN = left;
+			GenNode* rightN = right;
+			if (leftN->succ->find(rightN->item) == leftN->succ->end()) {
+				if (candIS.empty()) {
+					candIS = leftN->items();
+					ISTL = TList->getISTL(candIS);
+				}
+
+				candIS.insert(rightN->item);
+				int support = TList->singleInterSupp(rightN->item, ISTL);
+				if (support == minSupp) {
+					bool isGen = true;
+					std::set<uint32_t> cpCandIS;
+					cpCandIS.insert(candIS.begin(), candIS.end());
+					for (auto item : candIS) {
+						cpCandIS.erase(item);
+						GenNode* subset = genLookUp(cpCandIS, root);
+						if (subset == nullptr || subset->clos->support == minSupp) {
+							isGen = false;
+							break;
+						}
+						cpCandIS.insert(item);
+					}
+					if (isGen) {
+						GenNode* newGen = new GenNode(rightN->item, leftN, nullptr);
+						std::pair<bool, ClosedIS*> result = computeClosure(newGen, t_n, newClosures, root, TList, ClosureList);
+						if (!result.first) {
+							newClosures->push_back(result.second);
+						}
+						ClosedIS* clos = result.second;
+						clos->gens.insert(newGen);
+						newGen->clos = clos;
+					}
+				}
+				candIS.erase(rightN->item);
+				//}
+			//}
+			}
+		}
+	}
+
+	if (n->item == (1 << 31)) {
+		for (std::set<uint32_t>::const_iterator item = t_n.begin(); item != t_n.end(); item++) {
+			if (n->succ->find(*item) == n->succ->end()) {
+				int support = TList->supp_singleton(*item);
+				if (support >= minSupp) {
+					if (root->clos->support > support) {
+						GenNode* newGen = new GenNode(*item, root, nullptr);
+						std::pair<bool, ClosedIS*> result = computeClosure(newGen, t_n, newClosures, root, TList, ClosureList);
+						if (!result.first) {
+							newClosures->push_back(result.second);
+						}
+						ClosedIS* clos = result.second;
+						clos->gens.insert(newGen);
+						newGen->clos = clos;
+					}
+				}
+			}
+		}
+	}
+}
+
+
 
 // UNUSED
 std::set<std::set<uint32_t>*> computePreds(ClosedIS* clos) {
@@ -1010,7 +1119,6 @@ void dropObsolete(ClosedIS* clos, std::multimap<uint32_t, ClosedIS*>* ClosureLis
 				}
 			}
 			if (link) {
-				std::cout << "Not dead code!\n";
 				pred->succ->insert(std::make_pair(keyS, cg));
 				cg->preds->insert(std::make_pair(keyP, pred));
 			}
@@ -1127,14 +1235,6 @@ void innerDelete(GenNode* gen) {
 }
 
 
-
-
-
-
-
-
-
-
 void resetStatus(GenNode* n) {
 	n->clos->visited = false;
 	n->clos->candidates.clear();
@@ -1211,7 +1311,7 @@ int CISSum(std::set<uint32_t> Itemset) {
 	int mult = 1; // This will "slightly" reduce collisions
 	for (auto item : Itemset) {
 		sum += item*mult;
-		mult *= 10; // Wouold overflows cause an error ? They shouldn't...
+		mult *= 10;
 	}
 	return sum;
 }
@@ -1250,7 +1350,6 @@ void TIDList::remove(std::set<uint32_t> t_n, uint32_t n) {
 		}
 	}
 }
-
 
 
 int TIDList::supp_from_tidlist(std::set<uint32_t> itemset) { //TODO : start from a known tidlist and agregate other items one at a time
