@@ -47,10 +47,6 @@ void Addition(std::set<uint32_t> t_n, int n, GenNode* root, TIDList* TList, std:
         //std::set<std::set<uint32_t>*> preds = std::set<std::set<uint32_t>*>();
         //compute_generators_v2(&preds, *jClos);
 
-        /*if (preds.size() != 0) {
-          std::cout << "" << std::endl;
-        }*/
-
         uint32_t key = CISSum((*jClos)->itemset);
         if (extratext) {
             std::cout << "|preds|=" << preds.size() << std::endl;
@@ -60,6 +56,11 @@ void Addition(std::set<uint32_t> t_n, int n, GenNode* root, TIDList* TList, std:
             // pour chaque predecesseur, on le retrouve via son intent
             ClosedIS* predNode = findCI(**pred, ClosureList);
             if (predNode) {
+
+              /*if (predNode->deleted) {
+                std::cout << "...." << std::endl;
+              }*/
+
               // puis on link dans les deux sens
               predNode->succ->insert(std::make_pair(key, *jClos));
               (*jClos)->preds->insert(std::make_pair(CISSum(**pred), predNode));
@@ -75,6 +76,8 @@ void Addition(std::set<uint32_t> t_n, int n, GenNode* root, TIDList* TList, std:
     }
     //std::cout << testedJp << " jumpers tested.\n";
     closureReset(ClosureList); // This is needed to set all visited flags back to false and clear the candidate list
+
+    delete newClosures;
 }
 
 
@@ -96,6 +99,9 @@ void Deletion(std::set<uint32_t> t_0, int n, GenNode* root, TIDList* TList, std:
     }
 
     closureReset(ClosureList);
+
+    delete iJumpers;
+    delete fObsoletes;
 }
 
 
@@ -116,6 +122,19 @@ void printAllGens(GenNode* node, std::ostream& _output) {
   //totalGens++;
   _output << "\n";
 }
+
+void releaseAllGens(GenNode* node) {
+  //totalGens = 0;
+  if (node->succ) {
+    for (auto child : *node->succ) {
+      releaseAllGens(child.second);
+    }
+  }
+  node->succ->clear();
+  delete node->succ;
+  delete node;
+}
+
 
 void printAllClosuresWithGens(std::multimap<uint32_t, ClosedIS*> ClosureList) {
     totalGens = 0;
@@ -217,6 +236,23 @@ void printClosureOrder(std::multimap<uint32_t, ClosedIS*> ClosureList) {
         }
         std::cout << "\n";
     }
+}
+
+void releaseClosures(std::multimap<uint32_t, ClosedIS*> ClosureList) {
+  for (multimap<uint32_t, ClosedIS*>::iterator itr = ClosureList.begin(); itr != ClosureList.end(); ++itr) {
+    ClosedIS* currCI = itr->second;
+    currCI->candidates.clear();
+    currCI->gens.clear();
+    currCI->itemset.clear();
+    currCI->preds->clear();
+    delete currCI->preds;
+    currCI->succ->clear();
+    delete currCI->succ;
+    //std::cout << "deleted #" << currCI->id << std::endl;
+    if (currCI->id != 1) {
+      delete currCI;
+    }
+  }
 }
 
 void sanityCheck(GenNode* n) {
@@ -392,6 +428,7 @@ int main(int argc, char** argv)
       break;
     }
   }
+  /*
   bool removeEnd = true;
   if (removeEnd) {
       std::cout << "removing...\n";
@@ -402,11 +439,22 @@ int main(int argc, char** argv)
               std::cout << imax - i << " transactions left\n";
           }
       }
-  }
+  }*/
 
   
   std::cout << "Displaying all found generators as of transaction " << i << " :\n";
 
+
+
+  for (std::map<uint32_t, std::set<uint32_t>*>::iterator oo = TList->TransactionList.begin(); oo != TList->TransactionList.end(); ++oo) {
+    delete oo->second;
+  }
+  TList->TransactionList.clear();
+  delete TList;
+
+  for (int k = 0; k < windowSize; k++) {
+    delete TListByID[k];
+  }
 
 
   //printAllClosuresWithGensTM(ClosureList, output_cis_gen);
@@ -429,5 +477,12 @@ int main(int argc, char** argv)
       f2.close();
     }
     //printClosureOrder(ClosureList);
+    
+    
+    //clean CIs
+    releaseClosures(ClosureList);
+    // clean generators
+    releaseAllGens(root);
+
     return 0;
 }

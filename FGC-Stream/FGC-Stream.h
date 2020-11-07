@@ -99,7 +99,7 @@ struct ClosedIS {
 	std::multimap<uint32_t, ClosedIS*>* succ;
 	std::multimap<uint32_t, ClosedIS*>* preds;
 
-
+	bool deleted = false;
 
 	ClosedIS(std::set<uint32_t> itemset, uint32_t support, std::multimap<uint32_t, ClosedIS*>* ClosureList);
 };
