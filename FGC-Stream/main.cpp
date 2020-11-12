@@ -10,7 +10,7 @@ uint32_t totalGens = 0;
 
 const uint32_t windowSize = 1000;
 
-std::set<uint32_t>* TListByID[windowSize];
+std::set<uint32_t>** TListByID;
 
 int testedJp = 0;
 float sumJp = 0;
@@ -310,12 +310,12 @@ void Transaction<uint32_t>::load(char* _s, const char* _delims, const short _wit
 
 int main(int argc, char** argv)
 {
-  for (int k = 0; k < windowSize; k++) {
+  /*for (int k = 0; k < windowSize; k++) {
     TListByID[k] = new std::set<uint32_t>;
-  }
+  }*/
 
   auto start = std::chrono::high_resolution_clock::now();
-
+  uint32_t window_size = 0;
 
   uint32_t exitAt = 0;
   if (argc < 3) return 1;
@@ -332,8 +332,17 @@ int main(int argc, char** argv)
   if (argc >=5) {
     output_cis_gen = argv[4];
   }
+  
   if (argc >= 6) {
-    output_order = argv[5];
+    window_size = strtoul(argv[5], 0, 10);//1;
+    TListByID = new std::set<uint32_t> * [window_size];
+    for (int k = 0; k < window_size; k++) {
+      TListByID[k] = new std::set<uint32_t>();
+    }
+  }
+  
+  if (argc >= 7) {
+    output_order = argv[6];
   }
 
   TIDList* TList = new TIDList();
