@@ -8,7 +8,7 @@
     <DebuggerFlavor>WindowsLocalDebugger</DebuggerFlavor>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
-    <LocalDebuggerCommandArguments>C:\Users\_tmtrge\Downloads\ciclad_guy\ciclad\datasets\retail.dat 2 15000 outCI.txt 1000 outOr.txt</LocalDebuggerCommandArguments>
+    <LocalDebuggerCommandArguments>C:\Users\_tmtrge\Downloads\ciclad_guy\ciclad\datasets\retail.dat 2 0 outCI.txt 3000 outOr.txt</LocalDebuggerCommandArguments>
     <DebuggerFlavor>WindowsLocalDebugger</DebuggerFlavor>
   </PropertyGroup>
 </Project>

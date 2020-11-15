@@ -8,7 +8,7 @@ uint32_t NODE_ID = 0;
 uint32_t minSupp = 3;
 uint32_t totalGens = 0;
 
-const uint32_t windowSize = 1000;
+//const uint32_t windowSize = 1000;
 
 std::set<uint32_t>** TListByID;
 
@@ -355,7 +355,7 @@ int main(int argc, char** argv)
   Transaction<uint32_t> new_transaction = Transaction<uint32_t>(pch, " ", 0);
   i++;
   std::vector<uint32_t> closSetvec = *new_transaction.data();
-  TListByID[i % windowSize]->insert(closSetvec.begin(), closSetvec.end());
+  TListByID[i % window_size]->insert(closSetvec.begin(), closSetvec.end());
 
   closSet.insert(closSetvec.begin(), closSetvec.end());
   TList->add(closSet, i);
@@ -367,7 +367,7 @@ int main(int argc, char** argv)
     Transaction<uint32_t> new_transaction = Transaction<uint32_t>(pch, " ", 0);
     i++;
     std::vector<uint32_t> closSetvec = *new_transaction.data();
-    TListByID[i % windowSize]->insert(closSetvec.begin(), closSetvec.end());
+    TListByID[i % window_size]->insert(closSetvec.begin(), closSetvec.end());
 
     std::set<uint32_t> closSetPart(closSetvec.begin(), closSetvec.end());
     TList->add(closSetPart, i);
@@ -418,12 +418,12 @@ int main(int argc, char** argv)
     Addition(t_n, i, root, TList, &ClosureList);
 
 
-    if (i > windowSize) {
-        Deletion(*TListByID[i%windowSize], i-windowSize, root, TList, &ClosureList);
+    if (i > window_size) {
+        Deletion(*TListByID[i% window_size], i- window_size, root, TList, &ClosureList);
     }
 
-    TListByID[i % windowSize]->clear();
-    TListByID[i % windowSize]->insert(t_n.begin(), t_n.end());
+    TListByID[i % window_size]->clear();
+    TListByID[i % window_size]->insert(t_n.begin(), t_n.end());
     
 
     if (i % 100 == 0) {
@@ -461,7 +461,7 @@ int main(int argc, char** argv)
   TList->TransactionList.clear();
   delete TList;
 
-  for (int k = 0; k < windowSize; k++) {
+  for (int k = 0; k < window_size; k++) {
     delete TListByID[k];
   }
 
